@@ -254,7 +254,7 @@ async function callGemini(prompt) {
   const data = await resp.json();
   const candidates = data.candidates || [];
   if (!candidates.length || !candidates[0].content || !candidates[0].content.parts) {
-    throw new Error('No content from Gemini');
+    throw new Error('No content from Gemini: ' + JSON.stringify(data));
   }
 
   // همه part های متنی را به هم می‌چسبانیم تا یک JSON کامل به‌دست بیاوریم
