@@ -519,12 +519,13 @@
         <button id="off-btn">بررسی وضعیت (اطلاع رسمی)</button>
 
         <div class="ai-section">
-          <div class="ai-title">تحلیل خودکار با هوش مصنوعی</div>
+          <div class="ai-title">تحلیل خودکار با هوش مصنوعی (Gemini)</div>
           <div id="ai-off-status" class="status">برای تحلیل خودکار روی دکمه زیر بزنید.</div>
           <div class="meta" id="ai-off-meta">
-            اسکن خودکار چند خبرگزاری و سایت رسمی برای تشخیص تعطیلی فردا در تهران.
+            تحلیل متن خبرها و اطلاعیه‌های رسمی درباره تعطیلی فردا در تهران، بر اساس مدل زبانی.
           </div>
-          <button id="ai-btn" class="btn-secondary">اسکن سایت‌های خبری</button>
+          <div id="ai-grades" class="meta" style="margin-top:8px;text-align:right;"></div>
+          <button id="ai-btn" class="btn-secondary">تحلیل با هوش مصنوعی</button>
         </div>
       </div>
     </div>
@@ -758,59 +759,111 @@ offBtn.addEventListener('click', checkTomorrowStatus);
 checkTomorrowStatus();
 
 // ==========================================
-// 5. Lightweight AI Web Scanner for Tomorrow Off Day
+// 5. AI (Gemini-backed) Holiday Checker
 // ==========================================
 const aiBtn = document.getElementById('ai-btn');
 const aiOffStatus = document.getElementById('ai-off-status');
 const aiOffMeta = document.getElementById('ai-off-meta');
+const aiGradesEl = document.getElementById('ai-grades');
 
-const AI_SOURCES = [
-    { name: 'ایرنا', url: 'https://www.irna.ir' },
-    { name: 'ایسنا', url: 'https://www.isna.ir' },
-    { name: 'مهر', url: 'https://www.mehrnews.com' },
-    { name: 'تسنیم', url: 'https://www.tasnimnews.com' }
-];
-
-const ALL_ORIGINS_PROXY = 'https://api.allorigins.win/raw?url=';
+// آدرس بک‌اندی که Gemini را صدا می‌زند (جایگزین کن با آدرس واقعی)
+const AI_API_BASE = 'https://your-backend.example.com/api/ai-holiday';
 
 async function runAIScan() {
     if (!aiBtn) return;
     aiBtn.disabled = true;
     aiBtn.classList.add('is-loading');
-    aiBtn.textContent = 'درحال اسکن سایت‌ها...';
-    aiOffStatus.textContent = 'درحال بررسی چند منبع خبری و رسمی...';
+    aiBtn.textContent = 'درحال دریافت تحلیل از هوش مصنوعی...';
+    aiOffStatus.textContent = 'درحال تحلیل متن خبرها و اطلاعیه‌ها روی سرور...';
     aiOffStatus.className = 'status';
+    aiOffMeta.textContent = 'درحال اتصال به سرویس AI (Gemini) از طریق بک‌اند شما...';
+    if (aiGradesEl) aiGradesEl.textContent = '';
 
-    const results = [];
-    for (const src of AI_SOURCES) {
-        try {
-            const res = await fetch(ALL_ORIGINS_PROXY + encodeURIComponent(src.url));
-            if (!res.ok) continue;
-            const html = await res.text();
-            const analysis = analyzeSourceForHoliday(html, src.name);
-            if (analysis) results.push(analysis);
-        } catch (err) {
-            console.error('AI source error', src.url, err);
+    try {
+        // ابتدا تلاش برای گرفتن آخرین نتیجه کش شده
+        let res = await fetch(AI_API_BASE + '?city=Tehran');
+        if (!res.ok) {
+            // اگر کش موجود نبود، اسکن جدید را درخواست کن
+            res = await fetch(AI_API_BASE + '/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    city: 'Tehran',
+                    includeGrades: true,
+                    context: {
+                        lastIQ,
+                        lastTH
+                    }
+                })
+            });
         }
-    }
+        if (!res.ok) throw new Error('ai-api-failed');
 
-    const verdict = aggregateHolidayVerdict(results);
-
-    if (!verdict) {
-        aiOffStatus.textContent = 'هیچ اشاره‌ی واضحی به تعطیلی فردا در تهران در منابع بررسی‌شده پیدا نشد.';
+        const data = await res.json();
+        showAiResult(data);
+    } catch (err) {
+        console.error('AI API error', err);
+        aiOffStatus.textContent = 'خطا در دریافت تحلیل خودکار از سرور هوش مصنوعی.';
         aiOffStatus.className = 'status';
-        aiOffMeta.textContent = 'این نتیجه فقط یک بررسی خودکار است و ممکن است کامل یا قطعی نباشد.';
-    } else {
-        aiOffStatus.textContent = verdict.message;
-        aiOffStatus.className = 'status ' + (verdict.isOff ? 'unhealthy' : 'good');
-        aiOffMeta.textContent =
-          `نتیجه از اسکن ${verdict.sourcesCount} منبع | احتمال تقریبی: ${verdict.probability}% | ` +
-          verdict.reason;
+        aiOffMeta.textContent = 'اتصال به بک‌اند یا سرویس Gemini ممکن است مشکل داشته باشد.';
+    } finally {
+        aiBtn.disabled = false;
+        aiBtn.classList.remove('is-loading');
+        aiBtn.textContent = 'تحلیل با هوش مصنوعی';
+    }
+}
+
+function showAiResult(data) {
+    if (!data || !data.overall) {
+        aiOffStatus.textContent = 'پاسخ معتبری از سرویس هوش مصنوعی دریافت نشد.';
+        aiOffStatus.className = 'status';
+        aiOffMeta.textContent = 'ساختار پاسخ باید شامل فیلد overall باشد.';
+        return;
     }
 
-    aiBtn.disabled = false;
-    aiBtn.classList.remove('is-loading');
-    aiBtn.textContent = 'اسکن سایت‌های خبری';
+    const overall = data.overall;
+
+    aiOffStatus.textContent = overall.message ||
+        (overall.isOff
+            ? 'به‌احتمال زیاد فردا در تهران تعطیلی وجود دارد (بر اساس تحلیل AI).'
+            : 'طبق تحلیل AI، نشانه‌ی قوی از تعطیلی فردا در تهران دیده نمی‌شود.');
+
+    aiOffStatus.className = 'status ' + (overall.isOff ? 'unhealthy' : 'good');
+
+    const updatedAt = overall.updatedAt
+        ? new Date(overall.updatedAt).toLocaleTimeString('fa-IR')
+        : '---';
+
+    aiOffMeta.textContent =
+        `احتمال کلی: ${overall.probability ?? '-'}% | ` +
+        `منابع تحلیل‌شده: ${overall.sourcesCount ?? '-'} | ` +
+        `آخرین به‌روزرسانی: ${updatedAt}`;
+
+    // نمایش وضعیت هر مقطع (در صورت وجود)
+    if (aiGradesEl && data.grades) {
+        const grades = data.grades;
+        const lines = [];
+
+        const entries = [
+            { key: 'elementary', label: 'ابتدایی' },
+            { key: 'middle', label: 'متوسطه اول' },
+            { key: 'high', label: 'متوسطه دوم' },
+            { key: 'university', label: 'دانشگاه‌ها' },
+            { key: 'offices', label: 'ادارات و بانک‌ها' }
+        ];
+
+        entries.forEach(entry => {
+            const g = grades[entry.key];
+            if (!g) return;
+            const statusText = g.isOff ? 'تعطیل' : 'باز';
+            const probText = (g.probability ?? '-') + '%';
+            lines.push(`${entry.label}: ${statusText} (${probText})`);
+        });
+
+        aiGradesEl.textContent = lines.length
+            ? 'جزئیات مقاطع: ' + lines.join(' | ')
+            : '';
+    }
 }
 
 if (aiBtn) {
@@ -820,89 +873,6 @@ if (aiBtn) {
 // ==========================================
 // Helper Functions
 // ==========================================
-function analyzeSourceForHoliday(html, sourceName) {
-    if (!html) return null;
-    var text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    var matches = [];
-    var patterns = [
-        /(تعطیل(?:ی| است| خواهد بود)?)(.{0,80})(تهران)/g,
-        /(تهران)(.{0,80})(تعطیل(?:ی| است| خواهد بود)?)/g
-    ];
-
-    for (var i = 0; i < patterns.length && matches.length < 3; i++) {
-        var pat = patterns[i];
-        var m;
-        while ((m = pat.exec(text)) !== null && matches.length < 3) {
-            var snippet = (m[0] || '').slice(0, 160);
-            matches.push(snippet);
-        }
-    }
-
-    if (!matches.length) return null;
-
-    var hasTomorrow = /فردا/.test(text);
-    var hasSchool = /مدارس/.test(text);
-    var hasOffice = /ادارات|دستگاه‌های اجرایی|بانک‌ها/.test(text);
-
-    var score = 0;
-    if (hasTomorrow) score += 2;
-    if (hasSchool || hasOffice) score += 1;
-    score += Math.min(3, matches.length);
-
-    var isOff = score >= 3;
-
-    return {
-        source: sourceName,
-        isOff: isOff,
-        score: score,
-        hasTomorrow: hasTomorrow,
-        hasSchool: hasSchool,
-        hasOffice: hasOffice,
-        sample: matches[0]
-    };
-}
-
-function aggregateHolidayVerdict(results) {
-    if (!results || !results.length) return null;
-
-    var totalScore = 0;
-    var offVotes = 0;
-    for (var i = 0; i < results.length; i++) {
-        var r = results[i];
-        totalScore += r.score;
-        if (r.isOff) offVotes += 1;
-    }
-
-    var avgScore = totalScore / results.length;
-    var isOff = offVotes >= 1 && avgScore >= 2.5;
-    var probability = Math.max(10, Math.min(95, Math.round(avgScore * 18 + offVotes * 8)));
-
-    var strongSources = results.filter(function(r) { return r.isOff && r.sample; });
-    var reason;
-    if (strongSources.length) {
-        var s = strongSources[0];
-        reason = `نمونه از «${s.source}»: «${s.sample}...»`;
-    } else {
-        reason = 'در منابع بررسی‌شده اشاره‌ی قابل توجهی به تعطیلی فردا در تهران پیدا نشد.';
-    }
-
-    return {
-        isOff: isOff,
-        probability: probability,
-        sourcesCount: results.length,
-        message: isOff
-          ? 'به‌احتمال زیاد فردا در تهران تعطیلی اعلام می‌شود (بر اساس اخبار آنلاین).'
-          : 'طبق جستجوی خودکار در چند منبع خبری، فعلاً نشانه‌ای قوی از تعطیلی فردا در تهران دیده نمی‌شود.',
-        reason: reason
-    };
-}
 
 function setStatusColor(aqiId, statusId, value) {
     const aqiEl = document.getElementById(aqiId);
