@@ -356,6 +356,36 @@
       min-height: 1.1em;
     }
 
+    .ai-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.7);
+      text-align: center;
+    }
+
+    .ai-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #4b5563;
+      margin-bottom: 4px;
+    }
+
+    .btn-secondary {
+      margin-top: 10px;
+      background: linear-gradient(135deg, #374151, #4b5563);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.55);
+    }
+
+    .btn-secondary:hover {
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.7);
+      filter: brightness(1.03);
+    }
+
+    .btn-secondary:active {
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.6);
+      filter: brightness(0.97);
+    }
+
     @media (max-width: 768px) {
       body {
         padding-top: 16px;
@@ -486,7 +516,16 @@
         <div id="off-detail" class="status">درحال بررسی...</div>
         
         <div class="meta" id="off-meta">احتمال: --%</div>
-        <button id="off-btn">بررسی وضعیت</button>
+        <button id="off-btn">بررسی وضعیت (اطلاع رسمی)</button>
+
+        <div class="ai-section">
+          <div class="ai-title">تحلیل خودکار با هوش مصنوعی</div>
+          <div id="ai-off-status" class="status">برای تحلیل خودکار روی دکمه زیر بزنید.</div>
+          <div class="meta" id="ai-off-meta">
+            اسکن خودکار چند خبرگزاری و سایت رسمی برای تشخیص تعطیلی فردا در تهران.
+          </div>
+          <button id="ai-btn" class="btn-secondary">اسکن سایت‌های خبری</button>
+        </div>
       </div>
     </div>
 
@@ -719,8 +758,152 @@ offBtn.addEventListener('click', checkTomorrowStatus);
 checkTomorrowStatus();
 
 // ==========================================
+// 5. Lightweight AI Web Scanner for Tomorrow Off Day
+// ==========================================
+const aiBtn = document.getElementById('ai-btn');
+const aiOffStatus = document.getElementById('ai-off-status');
+const aiOffMeta = document.getElementById('ai-off-meta');
+
+const AI_SOURCES = [
+    { name: 'ایرنا', url: 'https://www.irna.ir' },
+    { name: 'ایسنا', url: 'https://www.isna.ir' },
+    { name: 'مهر', url: 'https://www.mehrnews.com' },
+    { name: 'تسنیم', url: 'https://www.tasnimnews.com' }
+];
+
+const ALL_ORIGINS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+async function runAIScan() {
+    if (!aiBtn) return;
+    aiBtn.disabled = true;
+    aiBtn.classList.add('is-loading');
+    aiBtn.textContent = 'درحال اسکن سایت‌ها...';
+    aiOffStatus.textContent = 'درحال بررسی چند منبع خبری و رسمی...';
+    aiOffStatus.className = 'status';
+
+    const results = [];
+    for (const src of AI_SOURCES) {
+        try {
+            const res = await fetch(ALL_ORIGINS_PROXY + encodeURIComponent(src.url));
+            if (!res.ok) continue;
+            const html = await res.text();
+            const analysis = analyzeSourceForHoliday(html, src.name);
+            if (analysis) results.push(analysis);
+        } catch (err) {
+            console.error('AI source error', src.url, err);
+        }
+    }
+
+    const verdict = aggregateHolidayVerdict(results);
+
+    if (!verdict) {
+        aiOffStatus.textContent = 'هیچ اشاره‌ی واضحی به تعطیلی فردا در تهران در منابع بررسی‌شده پیدا نشد.';
+        aiOffStatus.className = 'status';
+        aiOffMeta.textContent = 'این نتیجه فقط یک بررسی خودکار است و ممکن است کامل یا قطعی نباشد.';
+    } else {
+        aiOffStatus.textContent = verdict.message;
+        aiOffStatus.className = 'status ' + (verdict.isOff ? 'unhealthy' : 'good');
+        aiOffMeta.textContent =
+          `نتیجه از اسکن ${verdict.sourcesCount} منبع | احتمال تقریبی: ${verdict.probability}% | ` +
+          verdict.reason;
+    }
+
+    aiBtn.disabled = false;
+    aiBtn.classList.remove('is-loading');
+    aiBtn.textContent = 'اسکن سایت‌های خبری';
+}
+
+if (aiBtn) {
+    aiBtn.addEventListener('click', runAIScan);
+}
+
+// ==========================================
 // Helper Functions
 // ==========================================
+function analyzeSourceForHoliday(html, sourceName) {
+    if (!html) return null;
+    var text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    var matches = [];
+    var patterns = [
+        /(تعطیل(?:ی| است| خواهد بود)?)(.{0,80})(تهران)/g,
+        /(تهران)(.{0,80})(تعطیل(?:ی| است| خواهد بود)?)/g
+    ];
+
+    for (var i = 0; i < patterns.length && matches.length < 3; i++) {
+        var pat = patterns[i];
+        var m;
+        while ((m = pat.exec(text)) !== null && matches.length < 3) {
+            var snippet = (m[0] || '').slice(0, 160);
+            matches.push(snippet);
+        }
+    }
+
+    if (!matches.length) return null;
+
+    var hasTomorrow = /فردا/.test(text);
+    var hasSchool = /مدارس/.test(text);
+    var hasOffice = /ادارات|دستگاه‌های اجرایی|بانک‌ها/.test(text);
+
+    var score = 0;
+    if (hasTomorrow) score += 2;
+    if (hasSchool || hasOffice) score += 1;
+    score += Math.min(3, matches.length);
+
+    var isOff = score >= 3;
+
+    return {
+        source: sourceName,
+        isOff: isOff,
+        score: score,
+        hasTomorrow: hasTomorrow,
+        hasSchool: hasSchool,
+        hasOffice: hasOffice,
+        sample: matches[0]
+    };
+}
+
+function aggregateHolidayVerdict(results) {
+    if (!results || !results.length) return null;
+
+    var totalScore = 0;
+    var offVotes = 0;
+    for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        totalScore += r.score;
+        if (r.isOff) offVotes += 1;
+    }
+
+    var avgScore = totalScore / results.length;
+    var isOff = offVotes >= 1 && avgScore >= 2.5;
+    var probability = Math.max(10, Math.min(95, Math.round(avgScore * 18 + offVotes * 8)));
+
+    var strongSources = results.filter(function(r) { return r.isOff && r.sample; });
+    var reason;
+    if (strongSources.length) {
+        var s = strongSources[0];
+        reason = `نمونه از «${s.source}»: «${s.sample}...»`;
+    } else {
+        reason = 'در منابع بررسی‌شده اشاره‌ی قابل توجهی به تعطیلی فردا در تهران پیدا نشد.';
+    }
+
+    return {
+        isOff: isOff,
+        probability: probability,
+        sourcesCount: results.length,
+        message: isOff
+          ? 'به‌احتمال زیاد فردا در تهران تعطیلی اعلام می‌شود (بر اساس اخبار آنلاین).'
+          : 'طبق جستجوی خودکار در چند منبع خبری، فعلاً نشانه‌ای قوی از تعطیلی فردا در تهران دیده نمی‌شود.',
+        reason: reason
+    };
+}
+
 function setStatusColor(aqiId, statusId, value) {
     const aqiEl = document.getElementById(aqiId);
     const statusEl = document.getElementById(statusId);
