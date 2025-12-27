@@ -53,7 +53,11 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('AI API error:', err);
     res.statusCode = 500;
-    res.end(JSON.stringify({ error: 'ai-analysis-failed' }));
+    res.end(JSON.stringify({
+      error: 'ai-analysis-failed',
+      message: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : undefined
+    }));
   }
 };
 
@@ -92,15 +96,19 @@ async function runGeminiHolidayAnalysis(city, context) {
     { name: 'تسنیم', url: 'https://www.tasnimnews.com' }
   ];
 
+  // برای جلوگیری از تمام شدن توکن‌ها، متن هر منبع را کوتاه می‌کنیم
+  const MAX_CHARS_PER_SOURCE = 2000;
+
   let combinedText = '';
   let usedSources = 0;
 
   for (const src of sources) {
     try {
-      const r = await fetch(src.url, { timeout: 8000 });
+      const r = await fetch(src.url);
       if (!r.ok) continue;
       const html = await r.text();
-      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + stripHtml(html).slice(0, 15000);
+      const plain = stripHtml(html).slice(0, MAX_CHARS_PER_SOURCE);
+      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + plain;
       usedSources += 1;
     } catch (e) {
       // فقط لاگ می‌گیریم
@@ -127,7 +135,28 @@ async function runGeminiHolidayAnalysis(city, context) {
 
   let parsed;
   try {
-    parsed = JSON.parse(geminiResponse);
+    // تلاش برای پاک‌سازی خروجی مدل تا به JSON خالص برسیم
+    let cleaned = (geminiResponse || '').trim();
+
+    // اگر مدل در بلاک ```json ... ``` جواب داده باشد، آن را حذف می‌کنیم
+    if (cleaned.startsWith('```')) {
+      // حذف اولین خط ``` یا ```json
+      const lines = cleaned.split('\n');
+      if (lines.length > 1) {
+        // حذف خط اول و همچنین هر خط پایانی که با ``` شروع می‌شود
+        const inner = lines.slice(1).join('\n');
+        cleaned = inner.replace(/```[\s\S]*$/g, '').trim();
+      }
+    }
+
+    // اگر هنوز متن اضافی دارد، اولین { تا آخرین } را استخراج می‌کنیم
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    parsed = JSON.parse(cleaned);
   } catch (e) {
     // اگر مدل JSON معتبر برنگرداند، یک خروجی پیش‌فرض می‌سازیم
     console.error('Failed to parse Gemini JSON:', e, geminiResponse);
@@ -144,7 +173,14 @@ async function runGeminiHolidayAnalysis(city, context) {
         university: { isOff: false, probability: 30 },
         offices: { isOff: false, probability: 30 }
       },
-      sourcesCount: usedSources
+      sourcesCount: usedSources,
+      debugRaw: geminiResponse,
+      debugError: e && e.message ? e.message : String(e)
+    };
+  },
+      sourcesCount: usedSources,
+      debugRaw: geminiResponse,
+      debugError: e && e.message ? e.message : String(e)
     };
   }
 
@@ -221,7 +257,7 @@ ${newsText}
 
 async function callGemini(prompt) {
   const url =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' +
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=' +
     encodeURIComponent(GEMINI_API_KEY);
 
   const resp = await fetch(url, {
@@ -236,7 +272,8 @@ async function callGemini(prompt) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 1024
+        maxOutputTokens: 1024,
+        responseMimeType: 'application/json'
       }
     })
   });
@@ -249,12 +286,16 @@ async function callGemini(prompt) {
   const data = await resp.json();
   const candidates = data.candidates || [];
   if (!candidates.length || !candidates[0].content || !candidates[0].content.parts) {
-    throw new Error('No content from Gemini');
+    throw new Error('No content from Gemini: ' + JSON.stringify(data));
   }
 
-  // معمولاً متن در اولین part است
-  const part = candidates[0].content.parts[0];
-  return part.text || '';
+  // همه part های متنی را به هم می‌چسبانیم تا یک JSON کامل به‌دست بیاوریم
+  const parts = candidates[0].content.parts;
+  let fullText = '';
+  for (const p of parts) {
+    if (p.text) fullText += p.text;
+  }
+  return fullText.trim();
 }
 
 function stripHtml(html) {
