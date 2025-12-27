@@ -96,15 +96,19 @@ async function runGeminiHolidayAnalysis(city, context) {
     { name: 'تسنیم', url: 'https://www.tasnimnews.com' }
   ];
 
+  // برای جلوگیری از تمام شدن توکن‌ها، متن هر منبع را کوتاه می‌کنیم
+  const MAX_CHARS_PER_SOURCE = 2000;
+
   let combinedText = '';
   let usedSources = 0;
 
   for (const src of sources) {
     try {
-      const r = await fetch(src.url, { timeout: 8000 });
+      const r = await fetch(src.url);
       if (!r.ok) continue;
       const html = await r.text();
-      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + stripHtml(html).slice(0, 15000);
+      const plain = stripHtml(html).slice(0, MAX_CHARS_PER_SOURCE);
+      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + plain;
       usedSources += 1;
     } catch (e) {
       // فقط لاگ می‌گیریم
