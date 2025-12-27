@@ -225,8 +225,8 @@ ${newsText}
 
 async function callGemini(prompt) {
   const url =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' +
-    encodeURIComponent(GEMINI_API_KEY);
+    'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=' +
+    encodeURIComponent(GEM_API_KEY);
 
   const resp = await fetch(url, {
     method: 'POST',
