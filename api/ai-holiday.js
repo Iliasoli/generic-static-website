@@ -152,7 +152,9 @@ async function runGeminiHolidayAnalysis(city, context) {
         university: { isOff: false, probability: 30 },
         offices: { isOff: false, probability: 30 }
       },
-      sourcesCount: usedSources
+      sourcesCount: usedSources,
+      debugRaw: geminiResponse,
+      debugError: e && e.message ? e.message : String(e)
     };
   }
 
