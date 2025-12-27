@@ -240,7 +240,8 @@ async function callGemini(prompt) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 1024
+        maxOutputTokens: 1024,
+        responseMimeType: 'application/json'
       }
     })
   });
@@ -256,9 +257,13 @@ async function callGemini(prompt) {
     throw new Error('No content from Gemini');
   }
 
-  // معمولاً متن در اولین part است
-  const part = candidates[0].content.parts[0];
-  return part.text || '';
+  // همه part های متنی را به هم می‌چسبانیم تا یک JSON کامل به‌دست بیاوریم
+  const parts = candidates[0].content.parts;
+  let fullText = '';
+  for (const p of parts) {
+    if (p.text) fullText += p.text;
+  }
+  return fullText.trim();
 }
 
 function stripHtml(html) {
