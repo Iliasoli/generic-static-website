@@ -780,23 +780,19 @@ async function runAIScan() {
     if (aiGradesEl) aiGradesEl.textContent = '';
 
     try {
-        // ابتدا تلاش برای گرفتن آخرین نتیجه کش شده
-        let res = await fetch(AI_API_BASE + '?city=Tehran');
-        if (!res.ok) {
-            // اگر کش موجود نبود، اسکن جدید را درخواست کن
-            res = await fetch(AI_API_BASE + '/refresh', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    city: 'Tehran',
-                    includeGrades: true,
-                    context: {
-                        lastIQ,
-                        lastTH
-                    }
-                })
-            });
-        }
+        const res = await fetch(AI_API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                city: 'Tehran',
+                includeGrades: true,
+                context: {
+                    lastIQ,
+                    lastTH
+                }
+            })
+        });
+
         if (!res.ok) throw new Error('ai-api-failed');
 
         const data = await res.json();
