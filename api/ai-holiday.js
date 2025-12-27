@@ -1,6 +1,4 @@
-const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAQDUBsJBlLZR7UTwFxqjGNZa8oLDN18sc';
 
 // ساده‌ترین کش در حافظه (در سرورلس ممکن است همیشه پایدار نباشد، اما برای شروع کافی است)
 const cache = {
