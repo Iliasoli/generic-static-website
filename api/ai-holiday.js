@@ -135,7 +135,28 @@ async function runGeminiHolidayAnalysis(city, context) {
 
   let parsed;
   try {
-    parsed = JSON.parse(geminiResponse);
+    // تلاش برای پاک‌سازی خروجی مدل تا به JSON خالص برسیم
+    let cleaned = (geminiResponse || '').trim();
+
+    // اگر مدل در بلاک ```json ... ``` جواب داده باشد، آن را حذف می‌کنیم
+    if (cleaned.startsWith('```')) {
+      // حذف اولین خط ``` یا ```json
+      const lines = cleaned.split('\n');
+      if (lines.length > 1) {
+        // حذف خط اول و همچنین هر خط پایانی که با ``` شروع می‌شود
+        const inner = lines.slice(1).join('\n');
+        cleaned = inner.replace(/```[\s\S]*$/g, '').trim();
+      }
+    }
+
+    // اگر هنوز متن اضافی دارد، اولین { تا آخرین } را استخراج می‌کنیم
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    parsed = JSON.parse(cleaned);
   } catch (e) {
     // اگر مدل JSON معتبر برنگرداند، یک خروجی پیش‌فرض می‌سازیم
     console.error('Failed to parse Gemini JSON:', e, geminiResponse);
@@ -152,6 +173,11 @@ async function runGeminiHolidayAnalysis(city, context) {
         university: { isOff: false, probability: 30 },
         offices: { isOff: false, probability: 30 }
       },
+      sourcesCount: usedSources,
+      debugRaw: geminiResponse,
+      debugError: e && e.message ? e.message : String(e)
+    };
+  },
       sourcesCount: usedSources,
       debugRaw: geminiResponse,
       debugError: e && e.message ? e.message : String(e)
