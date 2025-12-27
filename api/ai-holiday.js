@@ -53,7 +53,11 @@ module.exports = async (req, res) => {
   } catch (err) {
     console.error('AI API error:', err);
     res.statusCode = 500;
-    res.end(JSON.stringify({ error: 'ai-analysis-failed' }));
+    res.end(JSON.stringify({
+      error: 'ai-analysis-failed',
+      message: err && err.message ? err.message : String(err),
+      stack: err && err.stack ? err.stack : undefined
+    }));
   }
 };
 
