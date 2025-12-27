@@ -1,70 +1,61 @@
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyAQDUBsJBlLZR7UTwFxqjGNZa8oLDN18sc';
-
-// ساده‌ترین کش در حافظه (در سرورلس ممکن است همیشه پایدار نباشد، اما برای شروع کافی است)
-const cache = {
-  Tehran: null
-};
+const GEMINI_API_KEY =
+  process.env.GEMINI_API_KEY || 'AIzaSyAQDUBsJBlLZR7UTwFxqjGNZa8oLDN18sc';
 
 module.exports = async (req, res) => {
-  const method = req.method || 'GET';
-  const url = new URL(req.url, 'http://localhost');
-  const city = (url.searchParams.get('city') || (req.body && req.body.city) || 'Tehran').trim();
-
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-  try {
-    if (method === 'GET') {
-      const data = cache[city];
-      if (!data) {
-        res.statusCode = 404;
-        return res.end(JSON.stringify({ error: 'no-cached-data' }));
-      }
-      return res.end(JSON.stringify(data));
-    }
-
-    if (method === 'POST') {
-      let body = req.body;
-      if (!body) {
-        // اگر بدنه هنوز پارس نشده باشد، آن را بخوانیم
-        body = await readJsonBody(req);
-      }
-
-      const context = body && body.context ? body.context : {};
-      const analysis = await runGeminiHolidayAnalysis(city, context);
-
-      const result = {
-        overall: {
-          isOff: analysis.overall.isOff,
-          probability: analysis.overall.probability,
-          sourcesCount: analysis.sourcesCount,
-          updatedAt: new Date().toISOString(),
-          message: analysis.overall.message
-        },
-        grades: analysis.grades
-      };
-
-      cache[city] = result;
-      res.statusCode = 200;
-      return res.end(JSON.stringify(result));
-    }
-
-    res.statusCode = 405;
-    res.end(JSON.stringify({ error: 'method-not-allowed' }));
-  } catch (err) {
-    console.error('AI API error:', err);
+  if (!GEMINI_API_KEY) {
     res.statusCode = 500;
-    res.end(JSON.stringify({
-      error: 'ai-analysis-failed',
-      message: err && err.message ? err.message : String(err),
-      stack: err && err.stack ? err.stack : undefined
-    }));
+    return res.end(JSON.stringify({ error: 'no-api-key' }));
+  }
+
+  try {
+    const body = await readJsonBody(req);
+    const city = (body && body.city) || 'Tehran';
+
+    // یک پرامپت خیلی ساده برای تست
+    const prompt = `
+شهر: ${city}
+وظیفه: یک شیء JSON ساده برگردان که فقط همین باشد:
+
+{
+  "overall": {
+    "isOff": true or false,
+    "probability": 0-100
+  }
+}
+
+هیچ متن اضافی، توضیح یا بلاک کد نده. فقط JSON خالص.
+`;
+
+    const raw = await callGemini(prompt);
+
+    res.statusCode = 200;
+    return res.end(
+      JSON.stringify({
+        ok: true,
+        rawFromGemini: raw
+      })
+    );
+  } catch (err) {
+    console.error('AI API error (debug):', err);
+    res.statusCode = 500;
+    return res.end(
+      JSON.stringify({
+        error: 'debug-failed',
+        message: err && err.message ? err.message : String(err),
+        stack: err && err.stack ? err.stack : undefined
+      })
+    );
   }
 };
 
 async function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', chunk => { data += chunk; });
+    req.on('data', chunk => {
+      data += chunk;
+    });
     req.on('end', () => {
       if (!data) return resolve({});
       try {
@@ -75,184 +66,6 @@ async function readJsonBody(req) {
     });
     req.on('error', reject);
   });
-}
-
-/**
- * runGeminiHolidayAnalysis
- * این تابع:
- *  - چند سایت خبری/رسمی را می‌خواند
- *  - متن را به Gemini می‌دهد
- *  - خروجی ساختاریافته (overall + grades) برمی‌گرداند
- */
-async function runGeminiHolidayAnalysis(city, context) {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not set in environment variables');
-  }
-
-  const sources = [
-    { name: 'ایرنا', url: 'https://www.irna.ir' },
-    { name: 'ایسنا', url: 'https://www.isna.ir' },
-    { name: 'مهر', url: 'https://www.mehrnews.com' },
-    { name: 'تسنیم', url: 'https://www.tasnimnews.com' }
-  ];
-
-  // برای جلوگیری از تمام شدن توکن‌ها، متن هر منبع را کوتاه می‌کنیم
-  const MAX_CHARS_PER_SOURCE = 2000;
-
-  let combinedText = '';
-  let usedSources = 0;
-
-  for (const src of sources) {
-    try {
-      const r = await fetch(src.url);
-      if (!r.ok) continue;
-      const html = await r.text();
-      const plain = stripHtml(html).slice(0, MAX_CHARS_PER_SOURCE);
-      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + plain;
-      usedSources += 1;
-    } catch (e) {
-      // فقط لاگ می‌گیریم
-      console.error('Source fetch error:', src.url, e.message || e);
-    }
-  }
-
-  if (!combinedText) {
-    combinedText = 'No sources could be fetched. The model should answer that it has insufficient information.';
-  }
-
-  const today = new Date();
-  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-  const faDate = tomorrow.toLocaleDateString('fa-IR');
-
-  const prompt = buildGeminiPrompt({
-    city,
-    tomorrowFa: faDate,
-    newsText: combinedText,
-    context
-  });
-
-  const geminiResponse = await callGemini(prompt);
-
-  let parsed;
-  try {
-    // تلاش برای پاک‌سازی خروجی مدل تا به JSON خالص برسیم
-    let cleaned = (geminiResponse || '').trim();
-
-    // اگر مدل در بلاک ```json ... ``` جواب داده باشد، آن را حذف می‌کنیم
-    if (cleaned.startsWith('```')) {
-      // حذف اولین خط ``` یا ```json
-      const lines = cleaned.split('\n');
-      if (lines.length > 1) {
-        // حذف خط اول و همچنین هر خط پایانی که با ``` شروع می‌شود
-        const inner = lines.slice(1).join('\n');
-        cleaned = inner.replace(/```[\s\S]*$/g, '').trim();
-      }
-    }
-
-    // اگر هنوز متن اضافی دارد، اولین { تا آخرین } را استخراج می‌کنیم
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-    }
-
-    parsed = JSON.parse(cleaned);
-  } catch (e) {
-    // اگر مدل JSON معتبر برنگرداند، یک خروجی پیش‌فرض می‌سازیم
-    console.error('Failed to parse Gemini JSON:', e, geminiResponse);
-    parsed = {
-      overall: {
-        isOff: false,
-        probability: 30,
-        message: 'مدل نتوانست خروجی ساختاریافته بدهد؛ فرض می‌کنیم تعطیلی قطعی نیست.'
-      },
-      grades: {
-        elementary: { isOff: false, probability: 30 },
-        middle: { isOff: false, probability: 30 },
-        high: { isOff: false, probability: 30 },
-        university: { isOff: false, probability: 30 },
-        offices: { isOff: false, probability: 30 }
-      },
-      sourcesCount: usedSources,
-      debugRaw: geminiResponse,
-      debugError: e && e.message ? e.message : String(e)
-    };
-  },
-      sourcesCount: usedSources,
-      debugRaw: geminiResponse,
-      debugError: e && e.message ? e.message : String(e)
-    };
-  }
-
-  // اطمینان از فیلدهای اصلی
-  parsed.sourcesCount = parsed.sourcesCount || usedSources;
-  if (!parsed.overall) {
-    parsed.overall = {
-      isOff: false,
-      probability: 30,
-      message: 'ساختار کلی توسط مدل برنگشته است.'
-    };
-  }
-  if (!parsed.grades) {
-    parsed.grades = {
-      elementary: { isOff: false, probability: 30 },
-      middle: { isOff: false, probability: 30 },
-      high: { isOff: false, probability: 30 },
-      university: { isOff: false, probability: 30 },
-      offices: { isOff: false, probability: 30 }
-    };
-  }
-
-  return parsed;
-}
-
-function buildGeminiPrompt({ city, tomorrowFa, newsText, context }) {
-  const aqiPart = context && (context.lastIQ != null || context.lastTH != null)
-    ? `\n\nداده‌های کیفیت هوا (ممکن است در تصمیم‌گیری برای تعطیلی نقش داشته باشند):\n- AQI منبع IQAir: ${context.lastIQ ?? 'نامشخص'}\n- AQI منبع شهرداری: ${context.lastTH ?? 'نامشخص'}\n`
-    : '';
-
-  return `
-شما یک دستیار هوش مصنوعی هستید که فقط باید درباره تعطیلی فردا در شهر ${city} (تهران) تحلیل بدهید.
-متن‌های زیر بخش‌هایی از خبرگزاری‌ها و سایت‌های رسمی ایران هستند.
-هدف: تشخیص اینکه فردا (${tomorrowFa}) در شهر ${city} آیا برای مقاطع مختلف تعطیلی اعلام شده است یا خیر.
-
-مقاطع مورد نظر:
-- elementary: مدارس ابتدایی
-- middle: مدارس متوسطه اول
-- high: مدارس متوسطه دوم (دبیرستان‌ها)
-- university: دانشگاه‌ها و مؤسسات آموزش عالی
-- offices: ادارات دولتی، سازمان‌ها و بانک‌ها
-
-${aqiPart}
-
-متن خبرها و اطلاعیه‌ها:
-------------------------------------------------
-${newsText}
-------------------------------------------------
-
-لطفا:
-1) فقط بر اساس متن فوق (و داده‌های کیفیت هوا در صورت کمک) تحلیل کن.
-2) دقیقاً و فقط یک شیء JSON برگردان که ساختاری مثل زیر دارد (هیچ متن دیگری اضافه نکن):
-
-{
-  "overall": {
-    "isOff": true or false,
-    "probability": 0-100 (number),
-    "message": "یک جمله فارسی کوتاه که توضیح خلاصه می‌دهد"
-  },
-  "grades": {
-    "elementary": { "isOff": true/false, "probability": 0-100, "reason": "جمله فارسی کوتاه" },
-    "middle":     { "isOff": true/false, "probability": 0-100, "reason": "..." },
-    "high":       { "isOff": true/false, "probability": 0-100, "reason": "..." },
-    "university": { "isOff": true/false, "probability": 0-100, "reason": "..." },
-    "offices":    { "isOff": true/false, "probability": 0-100, "reason": "..." }
-  },
-  "sourcesCount": (number of distinct sources that clearly mention tomorrow's status)
-}
-
-اگر در متن هیچ اشاره‌ی قابل اعتمادی به تعطیلی فردا در ${city} نبود، مقدار isOff را در همه موارد false بگذار و احتمال را پایین (مثلاً ۲۰-۴۰) تنظیم کن و در message/reason توضیح بده که «اطلاعیه رسمی پیدا نشد».
-خروجی باید JSON معتبر باشد و هیچ متن دیگری قبل یا بعد از آن چاپ نشود.
-`;
 }
 
 async function callGemini(prompt) {
@@ -272,8 +85,7 @@ async function callGemini(prompt) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 1024,
-        responseMimeType: 'application/json'
+        maxOutputTokens: 256
       }
     })
   });
@@ -289,22 +101,11 @@ async function callGemini(prompt) {
     throw new Error('No content from Gemini: ' + JSON.stringify(data));
   }
 
-  // همه part های متنی را به هم می‌چسبانیم تا یک JSON کامل به‌دست بیاوریم
+  // کل متن خروجی مدل را برمی‌گردانیم (بدون پارس)
   const parts = candidates[0].content.parts;
   let fullText = '';
   for (const p of parts) {
     if (p.text) fullText += p.text;
   }
   return fullText.trim();
-}
-
-function stripHtml(html) {
-  if (!html) return '';
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
