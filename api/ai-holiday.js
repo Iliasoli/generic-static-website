@@ -1,4 +1,4 @@
-const cache = {
+
   Tehran: null
 };
 
