@@ -1,5 +1,4 @@
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY || 'AIzaSyAQDUBsJBlLZR7UTwFxqjGNZa8oLDN18sc';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // کش ساده در حافظه برای نتایج آخر
 const cache = {
