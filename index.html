@@ -1328,9 +1328,27 @@
 
   offBtn.addEventListener('click', checkTomorrowStatus);
   checkTomorrowStatus();
-  function showOffdayNotification(data) {     if (!notifyBar || !notifyText || !data) return;   n const mode = getNotifyPreference();   ) if (mode === 'none') return;   n if (mode === 'only_off' && !data.isOff) return;
-    notifyText.innerHTML  `<Tstrong>به‌روزرسانی تعطی:</تعstrong> ${data.message || ''}`;   ' notifyBar.classList.add('visible'); b }
-  function normalizeOffGradezeOffGrade(gradeObj, overallIsOff) {     if (gradeObj && typeof gradeObj.isOff === 'boolean') {       return gradeObj;   p }   r if (typeof overallIsOff === 'boolean') {     o return { isOff: overallIsOff };   r }   ; return null; f }
+
+  function showOffdayNotification(data) {
+    if (!notifyBar || !notifyText || !data) return;
+    const mode = getNotifyPreference();
+    if (mode === 'none') return;
+    if (mode === 'only_off' && !data.isOff) return;
+
+    notifyText.innerHTML = `<strong>به‌روزرسانی تعطیلی:</strong> ${data.message || ''}`;
+    notifyBar.classList.add('visible');
+  }
+
+  function normalizeOffGrade(gradeObj, overallIsOff) {
+    if (gradeObj && typeof gradeObj.isOff === 'boolean') {
+      return gradeObj;
+    }
+    if (typeof overallIsOff === 'boolean') {
+      return { isOff: overallIsOff };
+    }
+    return null;
+  }
+
   function setGradeTag(el, gradeObj, label) {
     if (!el) return;
     el.className = 'grade-tag';
