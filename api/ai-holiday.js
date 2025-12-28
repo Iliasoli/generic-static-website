@@ -84,9 +84,8 @@ async function readJsonBody(req) {
 
 /**
  * runGeminiHolidayAnalysis
- * این تابع فعلاً فقط از مدل می‌خواهد بر اساس دانسته‌های خودش
- * و کمی کانتکست (AQI) درباره تعطیلی فردا در تهران نظر بدهد.
- * برای جلوگیری از پیچیدگی فعلاً اسکرپ وب را حذف کرده‌ایم.
+ * در این نسخه از ابزار Google Search داخلی مدل استفاده می‌کنیم
+ * تا خودش خبرها و اطلاعیه‌های مربوط به تعطیلی امروز در تهران را جستجو و تحلیل کند.
  */
 async function runGeminiHolidayAnalysis(city, context) {
   if (!GEMINI_API_KEY) {
@@ -96,36 +95,10 @@ async function runGeminiHolidayAnalysis(city, context) {
   const today = new Date();
   const faDate = today.toLocaleDateString('fa-IR');
 
-  // --- وب‌اسکرپینگ ساده از ۳ منبع: ایرنا، ایسنا، استانداری تهران ---
-  const sources = [
-    { name: 'IRNA', url: 'https://www.irna.ir' },
-    { name: 'ISNA', url: 'https://www.isna.ir' },
-    { name: 'TehranGov', url: 'https://ostan-th.ir' } // سایت استانداری تهران
-  ];
-  const MAX_CHARS_PER_SOURCE = 2500;
-
-  let combinedText = '';
-  let usedSources = 0;
-
-  for (const src of sources) {
-    try {
-      const r = await fetch(src.url, { redirect: 'follow' });
-      if (!r.ok) continue;
-      const html = await r.text();
-      const plain = stripHtml(html).slice(0, MAX_CHARS_PER_SOURCE);
-      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + plain;
-      usedSources += 1;
-    } catch (e) {
-      console.error('Source fetch error:', src.url, e.message || e);
-    }
-  }
-
   const prompt = buildGeminiPrompt({
     city,
     todayFa: faDate,
-    context,
-    newsText: combinedText,
-    sourcesCount: usedSources
+    context
   });
 
   const geminiResponse = await callGemini(prompt);
@@ -164,13 +137,13 @@ async function runGeminiHolidayAnalysis(city, context) {
         university: { isOff: false, probability: 30 },
         offices: { isOff: false, probability: 30 }
       },
-      sourcesCount: usedSources,
+      sourcesCount: 0,
       debugRaw: geminiResponse,
       debugError: e && e.message ? e.message : String(e)
     };
   }
 
-  parsed.sourcesCount = parsed.sourcesCount || usedSources || 0;
+  parsed.sourcesCount = parsed.sourcesCount || 0;
   if (!parsed.overall) {
     parsed.overall = {
       isOff: false,
@@ -191,42 +164,34 @@ async function runGeminiHolidayAnalysis(city, context) {
   return parsed;
 }
 
-function buildGeminiPrompt({ city, todayFa, context, newsText, sourcesCount }) {
+function buildGeminiPrompt({ city, todayFa, context }) {
   const aqiPart =
     context && (context.lastIQ != null || context.lastTH != null)
       ? `\n\nداده‌های کیفیت هوا (اگر کمک می‌کند):\n- AQI منبع IQAir: ${context.lastIQ ?? 'نامشخص'}\n- AQI منبع شهرداری: ${context.lastTH ?? 'نامشخص'}\n`
       : '';
 
-  const newsPart = newsText
-    ? `\n\nمتن‌های زیر بخش‌هایی از خبرگزاری‌ها و سایت‌های رسمی (ایرنا، ایسنا، استانداری تهران) هستند. آن‌ها را بخوان و فقط در صورتی که به‌صورت واضح درباره تعطیلی امروز در تهران صحبت می‌کنند، از آن‌ها استفاده کن:\n-----------------------------\n${newsText}\n-----------------------------\n`
-    : '\n(هیچ متن خبری مستقیمی ارسال نشده است؛ اگر اطلاع رسمی مخصوص امروز نمی‌شناسی، با احتیاط و احتمال پایین صحبت کن.)\n';
-
   return `
-شما یک مدل زبانی هستید که باید درباره تعطیلی «امروز» در شهر ${city} (تهران) تحلیل بدهید.
+شما یک مدل زبانی مجهز به ابزار Google Search هستید که باید درباره تعطیلی «امروز» در شهر ${city} (تهران) تحلیل بدهید.
 تاریخ امروز (تقریبی به تقویم شمسی): ${todayFa}.
-تعداد منابع خبری گرفته‌شده: ${sourcesCount ?? 0}.
 
 ${aqiPart}
-${newsPart}
 
-مقاطع مورد نظر:
-- elementary: مدارس ابتدایی
-- middle: مدارس متوسطه اول
-- high: مدارس متوسطه دوم (دبیرستان‌ها)
-- university: دانشگاه‌ها و مؤسسات آموزش عالی
-- offices: ادارات دولتی، سازمان‌ها و بانک‌ها
+لطفاً با استفاده از Google Search، سایت‌ها و خبرگزاری‌های رسمی و معتبر ایرانی مثل:
+- ایسنا (isna.ir)
+- ایرنا (irna.ir)
+- مهر (mehrnews.com)
+- تسنیم (tasnimnews.com)
+- سایت استانداری تهران (ostan-th.ir)
+- و سایر خبرگزاری‌های معتبر
+را جستجو کن و وضعیت تعطیلی امروز در تهران را بررسی کن. به‌ویژه دنبال اطلاعیه‌های کارگروه اضطرار آلودگی هوا، آموزش و پرورش و استانداری تهران باش.
 
-اگر در متن‌های خبری فوق (از ایرنا، ایسنا، استانداری تهران) هیچ اشاره‌ی رسمی و واضحی به تعطیلی امروز در تهران ندیدی، صادقانه بگو که اطلاع قطعی نداری و احتمالات را پایین بگذار (مثلاً ۲۰-۴۰٪) و در reason توضیح بده که «اطلاعیه رسمی در متن‌ها پیدا نشد».
-اگر در متن‌ها دیدی که «مدارس ابتدایی تهران امروز تعطیل هستند» یا مشابه آن، برای elementary مقدار isOff را true بگذار و احتمال را بالا (مثلاً ۷۰-۹۵٪) تنظیم کن و در reason جمله‌ای کوتاه از محتوا یا خلاصه آن را بنویس.
-همین منطق را برای سایر مقاطع اعمال کن (middle, high, university, offices) اگر در متن‌ها درباره آن‌ها صحبت شده بود.
-
-فقط و فقط یک شیء JSON با ساختار زیر برگردان (هیچ متن دیگر، هیچ توضیح اضافی، هیچ بلاک کد):
+خروجی نهایی باید فقط یک شیء JSON با ساختار زیر باشد (هیچ توضیح اضافه، هیچ بلاک کد، فقط JSON):
 
 {
   "overall": {
     "isOff": true or false,
     "probability": 0-100,
-    "message": "یک جمله فارسی کوتاه که خلاصه وضعیت را می‌گوید"
+    "message": "یک جمله فارسی کوتاه که خلاصه وضعیت تعطیلی امروز را می‌گوید"
   },
   "grades": {
     "elementary": { "isOff": true/false, "probability": 0-100, "reason": "..." },
@@ -235,14 +200,16 @@ ${newsPart}
     "university": { "isOff": true/false, "probability": 0-100, "reason": "..." },
     "offices":    { "isOff": true/false, "probability": 0-100, "reason": "..." }
   },
-  "sourcesCount": ${sourcesCount ?? 0}
+  "sourcesCount": (تعداد منابع مختلفی که صراحتاً به وضعیت تعطیلی امروز اشاره کرده‌اند)
 }
+
+اگر در نتایج جستجو هیچ اطلاعیه رسمی یا خبر معتبری درباره تعطیلی امروز در تهران پیدا نکردی، مقدار isOff را در همه موارد false بگذار، احتمال را پایین (مثلاً ۲۰-۴۰٪) انتخاب کن و در message و reason توضیح بده که «اطلاعیه رسمی پیدا نشد».
 `;
 }
 
 async function callGemini(prompt) {
   const url =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=' +
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
     encodeURIComponent(GEMINI_API_KEY);
 
   const resp = await fetch(url, {
@@ -255,9 +222,14 @@ async function callGemini(prompt) {
           parts: [{ text: prompt }]
         }
       ],
+      tools: [
+        {
+          google_search: {}
+        }
+      ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 4096
+        maxOutputTokens: 1024
       }
     })
   });
