@@ -741,714 +741,720 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-// متغیرهای سراسری
-let lastIQ = null;
-let lastTH = null;
+  <script>
+  // متغیرهای سراسری
+  let lastIQ = null;
+  let lastTH = null;
 
-// کلیدهای ذخیره‌سازی
-const IQAIR_CACHE_KEY = 'iqair_cache';
-const TEHRAN_CACHE_KEY = 'tehran_aqi_cache_v1';
-const AQI_HISTORY_KEY = 'aqi_history_v1';
-const LAST_STATE_KEY = 'offday_last_state_v1';
-const OFFDAY_HISTORY_KEY = 'offday_history_v1';
-const NOTIFY_PREF_KEY = 'offday_notify_pref_v1';
-const THEME_KEY = 'theme_preference_v1';
+  // کلیدهای ذخیره‌سازی
+  const IQAIR_CACHE_KEY = 'iqair_cache';
+  const TEHRAN_CACHE_KEY = 'tehran_aqi_cache_v1';
+  const AQI_HISTORY_KEY = 'aqi_history_v1';
+  const LAST_STATE_KEY = 'offday_last_state_v1';
+  const OFFDAY_HISTORY_KEY = 'offday_history_v1';
+  const NOTIFY_PREF_KEY = 'offday_notify_pref_v1';
+  const THEME_KEY = 'theme_preference_v1';
 
-// نمودار و تاریخچه AQI
-let aqiHistory = loadAQIHistory();
-let aqiHistoryChart = null;
+  // نمودار و تاریخچه AQI
+  let aqiHistory = loadAQIHistory();
+  let aqiHistoryChart = null;
 
-// ==========================================
-// Notification bar for off-day changes
-// ==========================================
-const notifyBar = document.getElementById('notify-bar');
-const notifyText = document.getElementById('notify-text');
-const notifyClose = document.getElementById('notify-close');
-if (notifyClose) {
-  notifyClose.addEventListener('click', () => {
-    notifyBar.classList.remove('visible');
-  });
-}
-
-// ==========================================
-// تم روشن/تاریک
-// ==========================================
-const themeToggleBtn = document.getElementById('theme-toggle-btn');
-
-function applyTheme(theme) {
-  const isLight = theme === 'light';
-  document.body.classList.toggle('theme-light', isLight);
-  if (themeToggleBtn) {
-    themeToggleBtn.textContent = isLight ? 'تم تیره' : 'تم روشن';
-  }
-}
-
-(function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  const theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
-  applyTheme(theme);
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-      const current = document.body.classList.contains('theme-light') ? 'light' : 'dark';
-      const next = current === 'light' ? 'dark' : 'light';
-      localStorage.setItem(THEME_KEY, next);
-      applyTheme(next);
+  // ==========================================
+  // Notification bar for off-day changes
+  // ==========================================
+  const notifyBar = document.getElementById('notify-bar');
+  const notifyText = document.getElementById('notify-text');
+  const notifyClose = document.getElementById('notify-close');
+  if (notifyClose) {
+    notifyClose.addEventListener('click', () => {
+      notifyBar.classList.remove('visible');
     });
   }
-})();
 
-// ==========================================
-// AQI History & Chart
-// ==========================================
-function loadAQIHistory() {
-  try {
-    const raw = localStorage.getItem(AQI_HISTORY_KEY);
-    if (!raw) return { labels: [], iqair: [], tehran: [] };
-    const parsed = JSON.parse(raw);
-    const labels = Array.isArray(parsed.labels) ? parsed.labels : [];
-    const iqair = Array.isArray(parsed.iqair) ? parsed.iqair : [];
-    const tehran = Array.isArray(parsed.tehran) ? parsed.tehran : [];
-    if (labels.length === iqair.length && labels.length === tehran.length) {
-      return { labels, iqair, tehran };
+  // ==========================================
+  // تم روشن/تاریک
+  // ==========================================
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+
+  function applyTheme(theme) {
+    const isLight = theme === 'light';
+    document.body.classList.toggle('theme-light', isLight);
+    if (themeToggleBtn) {
+      themeToggleBtn.textContent = isLight ? 'تم تیره' : 'تم روشن';
     }
-  } catch (e) {}
-  return { labels: [], iqair: [], tehran: [] };
-}
-
-function saveAQIHistory() {
-  try {
-    localStorage.setItem(AQI_HISTORY_KEY, JSON.stringify(aqiHistory));
-  } catch (e) {}
-}
-
-function addHistoryPoint(source, value) {
-  const num = Number(value);
-  if (isNaN(num)) return;
-  const label = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-
-  aqiHistory.labels.push(label);
-  aqiHistory.iqair.push(source === 'iqair' ? num : null);
-  aqiHistory.tehran.push(source === 'tehran' ? num : null);
-
-  const MAX_POINTS = 50;
-  if (aqiHistory.labels.length > MAX_POINTS) {
-    aqiHistory.labels.shift();
-    aqiHistory.iqair.shift();
-    aqiHistory.tehran.shift();
   }
 
-  saveAQIHistory();
-  updateAqiChart();
-  updateSimpleForecast();
-}
-
-function initAqiChart() {
-  const canvas = document.getElementById('aqi-history-chart');
-  if (!canvas || typeof Chart === 'undefined') return;
-
-  // ارتفاع ثابت و غیرفعال کردن حالت واکنش‌گرا برای جلوگیری از محاسبات سنگین
-  canvas.height = 140;
-  if (!canvas.width) {
-    canvas.width = canvas.clientWidth || 400;
-  }
-
-  aqiHistoryChart = new Chart(canvas, {
-    type: 'line',
-    data: {
-      labels: aqiHistory.labels,
-      datasets: [
-        {
-          label: 'IQAir',
-          data: aqiHistory.iqair,
-          borderColor: '#0288d1',
-          backgroundColor: 'rgba(2, 136, 209, 0.18)',
-          spanGaps: true,
-          tension: 0.3,
-          pointRadius: 2
-        },
-        {
-          label: 'شهرداری',
-          data: aqiHistory.tehran,
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34, 197, 94, 0.18)',
-          spanGaps: true,
-          tension: 0.3,
-          pointRadius: 2
-        }
-      ]
-    },
-    options: {       responsive: false,       maintainAspectRatio: false,       plugins: {         legend: {           labels: {             font: {               family: 'Vazirmatn'             }          }
-        },         tooltip: {         : rtl: true       : }       },      scales}: {       c x: {           ticks: {           i maxTicksLimit: 7,           i autoSkip: true,           i maxRotation: 0         x }         },         y: {         , beginAtZero: true,         g suggestedMax: 200         }     t }   : } 0 });}</
-
-     }
-      }
+  (function initTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    const theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+    applyTheme(theme);
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const current = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+        const next = current === 'light' ? 'dark' : 'light';
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+      });
     }
-  });
-}
+  })();
 
-function updateAqiChart() {
-  if (!aqiHistoryChart) return;
-  aqiHistoryChart.data.labels = aqiHistory.labels;
-  if (aqiHistoryChart.data.datasets[0]) {
-    aqiHistoryChart.data.datasets[0].data = aqiHistory.iqair;
-  }
-  if (aqiHistoryChart.data.datasets[1]) {
-    aqiHistoryChart.data.datasets[1].data = aqiHistory.tehran;
-  }
-  aqiHistoryChart.update('none');
-}
-
-// ==========================================
-// Health & AQI helpers
-// ==========================================
-function getAQICategory(value) {
-  const n = Number(value);
-  if (isNaN(n)) return { text: '--', cls: '' };
-  if (n <= 50) return { text: 'پاک', cls: 'good' };
-  if (n <= 100) return { text: 'قابل قبول', cls: 'moderate' };
-  if (n <= 150) return { text: 'ناسالم (گروه‌های حساس)', cls: 'unhealthy-sensitive' };
-  if (n <= 200) return { text: 'ناسالم', cls: 'unhealthy' };
-  if (n <= 300) return { text: 'بسیار ناسالم', cls: 'very-unhealthy' };
-  return { text: 'خطرناک', cls: 'hazardous' };
-}
-
-function getAQIAdvice(value) {
-  const n = Number(value);
-  if (isNaN(n)) return '';
-  if (n <= 50) {
-    return 'هوای پاک؛ مناسب برای فعالیت‌های روزمره و ورزش در فضای باز.';
-  } else if (n <= 100) {
-    return 'هوای قابل قبول؛ افراد حساس بهتر است مدت حضور طولانی در فضای باز را کاهش دهند.';
-  } else if (n <= 150) {
-    return 'ناسالم برای گروه‌های حساس؛ کودکان، سالمندان و بیماران قلبی/ریوی از فعالیت شدید در فضای باز خودداری کنند.';
-  } else if (n <= 200) {
-    return 'ناسالم؛ همه افراد از فعالیت سنگین در فضای باز خودداری کرده و در صورت امکان در محیط‌های بسته بمانند.';
-  } else if (n <= 300) {
-    return 'بسیار ناسالم؛ توصیه می‌شود فعالیت‌های معمول در فضای باز نیز محدود شود و از ماسک مناسب استفاده گردد.';
-  }
-  return 'خطرناک؛ تا حد امکان در خانه بمانید، درها و پنجره‌ها را بسته نگه دارید و از ماسک‌های فیلتردار استفاده کنید.';
-}
-
-function setStatusColor(aqiId, statusId, value) {
-  const aqiEl = document.getElementById(aqiId);
-  const statusEl = document.getElementById(statusId);
-  if (!aqiEl || !statusEl) return;
-  const cat = getAQICategory(value);
-  aqiEl.className = 'aqi ' + cat.cls;
-  statusEl.textContent = cat.text;
-  statusEl.className = 'status ' + cat.cls;
-}
-
-function updateHealthTips(value, elementId) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  el.textContent = getAQIAdvice(value);
-}
-
-function animateNumber(el, newValue, duration = 700) {
-  if (!el) return;
-  const currentText = el.textContent || '';
-  const currentNumeric = parseFloat(currentText.replace(/[^\d.-]/g, ''));
-  const start = isNaN(currentNumeric) ? 0 : currentNumeric;
-  const end = Number(newValue);
-  if (isNaN(end)) {
-    el.textContent = newValue;
-    return;
-  }
-  const startTime = performance.now();
-
-  function frame(now) {
-    const progress = Math.min((now - startTime) / duration, 1);
-    const value = Math.round(start + (end - start) * progress);
-    el.textContent = value;
-    if (progress < 1) requestAnimationFrame(frame);
-  }
-
-  requestAnimationFrame(frame);
-}
-
-// ==========================================
-// 1. IQAir Logic
-// ==========================================
-(function () {
-  const btn = document.getElementById('iq-btn');
-  const msgEl = document.getElementById('iq-msg');
-  const metaEl = document.getElementById('iq-meta');
-  const API_KEY = '75b599ae-76ca-4089-8487-e88e3da6aa86';
-
-  const cachedData = localStorage.getItem(IQAIR_CACHE_KEY);
-  if (cachedData) {
+  // ==========================================
+  // AQI History & Chart
+  // ==========================================
+  function loadAQIHistory() {
     try {
-      const parsed = JSON.parse(cachedData);
-      showIQData(parsed.data);
-      metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
-      lastIQ = parsed.data.current.pollution.aqius;
-      updateDifferenceCard();
-    } catch (e) {
-      localStorage.removeItem(IQAIR_CACHE_KEY);
-    }
+      const raw = localStorage.getItem(AQI_HISTORY_KEY);
+      if (!raw) return { labels: [], iqair: [], tehran: [] };
+      const parsed = JSON.parse(raw);
+      const labels = Array.isArray(parsed.labels) ? parsed.labels : [];
+      const iqair = Array.isArray(parsed.iqair) ? parsed.iqair : [];
+      const tehran = Array.isArray(parsed.tehran) ? parsed.tehran : [];
+      if (labels.length === iqair.length && labels.length === tehran.length) {
+        return { labels, iqair, tehran };
+      }
+    } catch (e) {}
+    return { labels: [], iqair: [], tehran: [] };
   }
 
-  async function fetchIQAir() {
-    btn.textContent = 'درحال دریافت...';
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    msgEl.textContent = '';
-
+  function saveAQIHistory() {
     try {
-      const url = `https://api.airvisual.com/v2/city?city=Tehran&state=Tehran&country=Iran&key=${API_KEY}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json();
+      localStorage.setItem(AQI_HISTORY_KEY, JSON.stringify(aqiHistory));
+    } catch (e) {}
+  }
 
-      if (data.status === 'success') {
-        const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-        const cacheObj = { data: data.data, time: timeString, ts: Date.now() };
-        localStorage.setItem(IQAIR_CACHE_KEY, JSON.stringify(cacheObj));
-        showIQData(data.data);
-        metaEl.textContent = 'بروزرسانی: ' + timeString;
+  function addHistoryPoint(source, value) {
+    const num = Number(value);
+    if (isNaN(num)) return;
+    const label = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
-        lastIQ = data.data.current.pollution.aqius;
-        updateDifferenceCard();
-        addHistoryPoint('iqair', lastIQ);
-      } else {
-        throw new Error((data.data && data.data.message) || 'خطا در دریافت');
-      }
-    } catch (err) {
-      console.error(err);
-      msgEl.textContent = 'خطا در ارتباط (شاید محدودیت تمام شده)';
-      const cached = localStorage.getItem(IQAIR_CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          showIQData(parsed.data);
-          metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
-          lastIQ = parsed.data.current.pollution.aqius;
-          updateDifferenceCard();
-        } catch (e) {
-          // ignore
-        }
-      }
-    } finally {
-      btn.textContent = 'دریافت اطلاعات جدید';
-      btn.disabled = false;
-      btn.classList.remove('is-loading');
+    aqiHistory.labels.push(label);
+    aqiHistory.iqair.push(source === 'iqair' ? num : null);
+    aqiHistory.tehran.push(source === 'tehran' ? num : null);
+
+    const MAX_POINTS = 50;
+    if (aqiHistory.labels.length > MAX_POINTS) {
+      aqiHistory.labels.shift();
+      aqiHistory.iqair.shift();
+      aqiHistory.tehran.shift();
     }
+
+    saveAQIHistory();
+    updateAqiChart();
+    updateSimpleForecast();
   }
 
-  function showIQData(d) {
-    const aqius = d.current.pollution.aqius;
-    const weather = d.current.weather;
-    const aqiEl = document.getElementById('iq-aqi');
+  function initAqiChart() {
+    const canvas = document.getElementById('aqi-history-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
 
-    animateNumber(aqiEl, aqius);
-    document.getElementById('iq-temp').textContent = weather.tp;
-    document.getElementById('iq-hum').textContent = weather.hu;
-    document.getElementById('iq-wind').textContent = weather.ws;
-    setStatusColor('iq-aqi', 'iq-status', aqius);
-    updateHealthTips(aqius, 'iq-tips');
-  }
+    canvas.height = 140;
+    if (!canvas.width) {
+      canvas.width = canvas.clientWidth || 400;
+    }
 
-  btn.addEventListener('click', fetchIQAir);
-})();
-
-// ==========================================
-// 2. Air Tehran Logic
-// ==========================================
-(function () {
-  const aqiEl = document.getElementById('th-aqi');
-  const statusEl = document.getElementById('th-status');
-  const metaEl = document.getElementById('th-meta');
-  const btn = document.getElementById('th-btn');
-  const msgEl = document.getElementById('th-msg');
-  const API = 'https://air.tehran.ir/DesktopModules/AirService/Api/Air/AQINow';
-
-  async function fetchTehran() {
-    btn.disabled = true;
-    btn.textContent = 'درحال دریافت...';
-    btn.classList.add('is-loading');
-    msgEl.textContent = '';
-    try {
-      const r = await fetch(API, { cache: 'no-store' });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const text = await r.text();
-      const m = text.match(/-?\d+(\.\d+)?/);
-      if (m) {
-        const num = Math.round(Number(m[0]));
-        animateNumber(aqiEl, num);
-        setStatusColor('th-aqi', 'th-status', num);
-        const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-        metaEl.textContent = 'بروزرسانی: ' + timeString;
-        lastTH = num;
-        try {
-          localStorage.setItem(TEHRAN_CACHE_KEY, JSON.stringify({ value: num, time: timeString, ts: Date.now() }));
-        } catch (e) {}
-        addHistoryPoint('tehran', num);
-        updateDifferenceCard();
-      } else {
-        throw new Error('فرمت نامعتبر');
-      }
-    } catch (err) {
-      console.error(err);
-      msgEl.textContent = 'عدم دسترسی (نیاز به IP ایران)';
-      const cached = localStorage.getItem(TEHRAN_CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const num = parsed.value;
-          if (typeof num === 'number') {
-            aqiEl.textContent = num;
-            setStatusColor('th-aqi', 'th-status', num);
-            updateHealthTips(num, 'th-tips');
-            metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
-            lastTH = num;
-            updateDifferenceCard();
+    aqiHistoryChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: aqiHistory.labels,
+        datasets: [
+          {
+            label: 'IQAir',
+            data: aqiHistory.iqair,
+            borderColor: '#0288d1',
+            backgroundColor: 'rgba(2, 136, 209, 0.18)',
+            spanGaps: true,
+            tension: 0.3,
+            pointRadius: 2
+          },
+          {
+            label: 'شهرداری',
+            data: aqiHistory.tehran,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.18)',
+            spanGaps: true,
+            tension: 0.3,
+            pointRadius: 2
           }
-        } catch (e) {
+        ]
+      },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              font: {
+                family: 'Vazirmatn'
+              }
+            }
+          },
+          tooltip: {
+            rtl: true
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 7,
+              autoSkip: true,
+              maxRotation: 0
+            }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 200
+          }
+        }
+      }
+    });
+  }
+
+  function updateAqiChart() {
+    if (!aqiHistoryChart) return;
+    aqiHistoryChart.data.labels = aqiHistory.labels;
+    if (aqiHistoryChart.data.datasets[0]) {
+      aqiHistoryChart.data.datasets[0].data = aqiHistory.iqair;
+    }
+    if (aqiHistoryChart.data.datasets[1]) {
+      aqiHistoryChart.data.datasets[1].data = aqiHistory.tehran;
+    }
+    aqiHistoryChart.update('none');
+  }
+
+  // ==========================================
+  // Health & AQI helpers
+  // ==========================================
+  function getAQICategory(value) {
+    const n = Number(value);
+    if (isNaN(n)) return { text: '--', cls: '' };
+    if (n <= 50) return { text: 'پاک', cls: 'good' };
+    if (n <= 100) return { text: 'قابل قبول', cls: 'moderate' };
+    if (n <= 150) return { text: 'ناسالم (گروه‌های حساس)', cls: 'unhealthy-sensitive' };
+    if (n <= 200) return { text: 'ناسالم', cls: 'unhealthy' };
+    if (n <= 300) return { text: 'بسیار ناسالم', cls: 'very-unhealthy' };
+    return { text: 'خطرناک', cls: 'hazardous' };
+  }
+
+  function getAQIAdvice(value) {
+    const n = Number(value);
+    if (isNaN(n)) return '';
+    if (n <= 50) {
+      return 'هوای پاک؛ مناسب برای فعالیت‌های روزمره و ورزش در فضای باز.';
+    } else if (n <= 100) {
+      return 'هوای قابل قبول؛ افراد حساس بهتر است مدت حضور طولانی در فضای باز را کاهش دهند.';
+    } else if (n <= 150) {
+      return 'ناسالم برای گروه‌های حساس؛ کودکان، سالمندان و بیماران قلبی/ریوی از فعالیت شدید در فضای باز خودداری کنند.';
+    } else if (n <= 200) {
+      return 'ناسالم؛ همه افراد از فعالیت سنگین در فضای باز خودداری کرده و در صورت امکان در محیط‌های بسته بمانند.';
+    } else if (n <= 300) {
+      return 'بسیار ناسالم؛ توصیه می‌شود فعالیت‌های معمول در فضای باز نیز محدود شود و از ماسک مناسب استفاده گردد.';
+    }
+    return 'خطرناک؛ تا حد امکان در خانه بمانید، درها و پنجره‌ها را بسته نگه دارید و از ماسک‌های فیلتردار استفاده کنید.';
+  }
+
+  function setStatusColor(aqiId, statusId, value) {
+    const aqiEl = document.getElementById(aqiId);
+    const statusEl = document.getElementById(statusId);
+    if (!aqiEl || !statusEl) return;
+    const cat = getAQICategory(value);
+    aqiEl.className = 'aqi ' + cat.cls;
+    statusEl.textContent = cat.text;
+    statusEl.className = 'status ' + cat.cls;
+  }
+
+  function updateHealthTips(value, elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = getAQIAdvice(value);
+  }
+
+  function animateNumber(el, newValue, duration = 700) {
+    if (!el) return;
+    const currentText = el.textContent || '';
+    const currentNumeric = parseFloat(currentText.replace(/[^\d.-]/g, ''));
+    const start = isNaN(currentNumeric) ? 0 : currentNumeric;
+    const end = Number(newValue);
+    if (isNaN(end)) {
+      el.textContent = newValue;
+      return;
+    }
+    const startTime = performance.now();
+
+    function frame(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const value = Math.round(start + (end - start) * progress);
+      el.textContent = value;
+      if (progress < 1) requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // ==========================================
+  // 1. IQAir Logic
+  // ==========================================
+  (function () {
+    const btn = document.getElementById('iq-btn');
+    const msgEl = document.getElementById('iq-msg');
+    const metaEl = document.getElementById('iq-meta');
+    const API_KEY = '75b599ae-76ca-4089-8487-e88e3da6aa86';
+
+    const cachedData = localStorage.getItem(IQAIR_CACHE_KEY);
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        showIQData(parsed.data);
+        metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+        lastIQ = parsed.data.current.pollution.aqius;
+        updateDifferenceCard();
+      } catch (e) {
+        localStorage.removeItem(IQAIR_CACHE_KEY);
+      }
+    }
+
+    async function fetchIQAir() {
+      btn.textContent = 'درحال دریافت...';
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+      msgEl.textContent = '';
+
+      try {
+        const url = `https://api.airvisual.com/v2/city?city=Tehran&state=Tehran&country=Iran&key=${API_KEY}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+          const cacheObj = { data: data.data, time: timeString, ts: Date.now() };
+          localStorage.setItem(IQAIR_CACHE_KEY, JSON.stringify(cacheObj));
+          showIQData(data.data);
+          metaEl.textContent = 'بروزرسانی: ' + timeString;
+
+          lastIQ = data.data.current.pollution.aqius;
+          updateDifferenceCard();
+          addHistoryPoint('iqair', lastIQ);
+        } else {
+          throw new Error((data.data && data.data.message) || 'خطا در دریافت');
+        }
+      } catch (err) {
+        console.error(err);
+        msgEl.textContent = 'خطا در ارتباط (شاید محدودیت تمام شده)';
+        const cached = localStorage.getItem(IQAIR_CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            showIQData(parsed.data);
+            metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+            lastIQ = parsed.data.current.pollution.aqius;
+            updateDifferenceCard();
+          } catch (e) {}
+        }
+      } finally {
+        btn.textContent = 'دریافت اطلاعات جدید';
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+      }
+    }
+
+    function showIQData(d) {
+      const aqius = d.current.pollution.aqius;
+      const weather = d.current.weather;
+      const aqiEl = document.getElementById('iq-aqi');
+
+      animateNumber(aqiEl, aqius);
+      document.getElementById('iq-temp').textContent = weather.tp;
+      document.getElementById('iq-hum').textContent = weather.hu;
+      document.getElementById('iq-wind').textContent = weather.ws;
+      setStatusColor('iq-aqi', 'iq-status', aqius);
+      updateHealthTips(aqius, 'iq-tips');
+    }
+
+    btn.addEventListener('click', fetchIQAir);
+  })();
+
+  // ==========================================
+  // 2. Air Tehran Logic
+  // ==========================================
+  (function () {
+    const aqiEl = document.getElementById('th-aqi');
+    const statusEl = document.getElementById('th-status');
+    const metaEl = document.getElementById('th-meta');
+    const btn = document.getElementById('th-btn');
+    const msgEl = document.getElementById('th-msg');
+    const API = 'https://air.tehran.ir/DesktopModules/AirService/Api/Air/AQINow';
+
+    async function fetchTehran() {
+      btn.disabled = true;
+      btn.textContent = 'درحال دریافت...';
+      btn.classList.add('is-loading');
+      msgEl.textContent = '';
+      try {
+        const r = await fetch(API, { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const text = await r.text();
+        const m = text.match(/-?\d+(\.\d+)?/);
+        if (m) {
+          const num = Math.round(Number(m[0]));
+          animateNumber(aqiEl, num);
+          setStatusColor('th-aqi', 'th-status', num);
+          const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+          metaEl.textContent = 'بروزرسانی: ' + timeString;
+          lastTH = num;
+          try {
+            localStorage.setItem(TEHRAN_CACHE_KEY, JSON.stringify({ value: num, time: timeString, ts: Date.now() }));
+          } catch (e) {}
+          addHistoryPoint('tehran', num);
+          updateDifferenceCard();
+          updateHealthTips(num, 'th-tips');
+        } else {
+          throw new Error('فرمت نامعتبر');
+        }
+      } catch (err) {
+        console.error(err);
+        msgEl.textContent = 'عدم دسترسی (نیاز به IP ایران)';
+        const cached = localStorage.getItem(TEHRAN_CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            const num = parsed.value;
+            if (typeof num === 'number') {
+              aqiEl.textContent = num;
+              setStatusColor('th-aqi', 'th-status', num);
+              updateHealthTips(num, 'th-tips');
+              metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+              lastTH = num;
+              updateDifferenceCard();
+            }
+          } catch (e) {
+            aqiEl.textContent = '---';
+            statusEl.textContent = 'خطا';
+            statusEl.className = 'status';
+          }
+        } else {
           aqiEl.textContent = '---';
           statusEl.textContent = 'خطا';
           statusEl.className = 'status';
         }
-      } else {
-        aqiEl.textContent = '---';
-        statusEl.textContent = 'خطا';
-        statusEl.className = 'status';
-      }
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'بارگذاری دوباره';
-      btn.classList.remove('is-loading');
-    }
-  }
-  btn.addEventListener('click', fetchTehran);
-  fetchTehran();
-  setInterval(fetchTehran, 300000);
-})();
-
-// ==========================================
-// 3. Difference Logic
-// ==========================================
-function updateDifferenceCard() {
-  const diffEl = document.getElementById('diff-aqi');
-  const statusEl = document.getElementById('diff-status');
-  const metaEl = document.getElementById('diff-meta');
-
-  if (lastIQ === null) {
-    const cached = localStorage.getItem(IQAIR_CACHE_KEY);
-    if (cached) {
-      try {
-        lastIQ = JSON.parse(cached).data.current.pollution.aqius;
-      } catch (e) {}
-    }
-  }
-  if (lastTH === null) {
-    const cachedTh = localStorage.getItem(TEHRAN_CACHE_KEY);
-    if (cachedTh) {
-      try {
-        lastTH = JSON.parse(cachedTh).value;
-      } catch (e) {}
-    }
-  }
-
-  if (lastIQ === null || lastTH === null) {
-    diffEl.textContent = '--';
-    statusEl.textContent = 'منتظر دریافت داده‌ها...';
-    statusEl.className = 'status';
-    metaEl.textContent = '---';
-    return;
-  }
-
-  const diff = Math.abs(lastIQ - lastTH);
-  animateNumber(diffEl, diff);
-
-  let cls = '';
-  let txt = '';
-  if (diff <= 10) {
-    cls = 'good';
-    txt = 'اختلاف ناچیز';
-  } else if (diff <= 30) {
-    cls = 'moderate';
-    txt = 'اختلاف قابل توجه';
-  } else {
-    cls = 'unhealthy';
-    txt = 'اختلاف بسیار زیاد';
-  }
-
-  diffEl.className = 'aqi ' + cls;
-  statusEl.className = 'status ' + cls;
-  statusEl.textContent = txt;
-
-  metaEl.innerHTML = `<span style="color:#0288d1">IQAir: ${lastIQ}</span> | <span style="color:#2e7d32">شهرداری: ${lastTH}</span>`;
-}
-
-// ==========================================
-// 4. Tomorrow Off Day Logic (JsonBin, بدون AI)
-// ==========================================
-const offBtn = document.getElementById('off-btn');
-const offResult = document.getElementById('off-result');
-const offDetail = document.getElementById('off-detail');
-const offMeta = document.getElementById('off-meta');
-const offHistoryContainer = document.getElementById('off-history');
-
-const gradeEls = {
-  elementary: document.getElementById('grade-elementary'),
-  middle: document.getElementById('grade-middle'),
-  high: document.getElementById('grade-high'),
-  university: document.getElementById('grade-university'),
-  offices: document.getElementById('grade-offices')
-};
-
-const BIN_ID = '692de28043b1c97be9d1196c';
-const MASTER_KEY = '$2a$10$57AkCAfM2BgIYN4mEawKE.GKIf.0dUtV5OG6glYN3O6dRQJ5qpgae '; // فقط اگر Private است، در هدر استفاده شود
-
-// تنظیمات اعلان تعطیلی
-const notifyModeSelect = document.getElementById('notify-mode');
-
-function getNotifyPreference() {
-  const raw = localStorage.getItem(NOTIFY_PREF_KEY);
-  if (raw === 'none' || raw === 'only_off' || raw === 'all') return raw;
-  return 'all';
-}
-
-if (notifyModeSelect) {
-  const pref = getNotifyPreference();
-  notifyModeSelect.value = pref;
-  notifyModeSelect.addEventListener('change', () => {
-    localStorage.setItem(NOTIFY_PREF_KEY, notifyModeSelect.value);
-  });
-}
-
-// تاریخچه تعطیلی
-let offdayHistory = loadOffdayHistory();
-renderOffdayHistory(offdayHistory);
-
-async function checkTomorrowStatus() {
-  offBtn.textContent = 'درحال دریافت...';
-  offBtn.disabled = true;
-  offBtn.classList.add('is-loading');
-
-  try {
-    const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: {
-        // اگر BIN Private است این را فعال کنید:
-        // "X-Master-Key": MASTER_KEY
-      }
-    });
-
-    if (!response.ok) throw new Error('خطا در اتصال');
-
-    const json = await response.json();
-    const data = json.record;
-
-    // وضعیت کلی
-    offResult.textContent = data.isOff ? 'تعطیل است' : 'باز است';
-    offResult.style.color = data.isOff ? '#d32f2f' : '#388e3c';
-
-    offDetail.textContent = data.message;
-    offMeta.textContent = `احتمال: ${data.percent}% | بروزرسانی ادمین: ${new Date(data.lastUpdate).toLocaleTimeString('fa-IR')}`;
-
-    // نمایش per-grade اگر وجود دارد
-    const grades = data.grades || {};
-    setGradeTag(gradeEls.elementary, grades.elementary, 'ابتدایی');
-    setGradeTag(gradeEls.middle, grades.middle, 'متوسطه اول');
-    setGradeTag(gradeEls.high, grades.high, 'متوسطه دوم');
-    setGradeTag(gradeEls.university, grades.university, 'دانشگاه‌ها');
-    setGradeTag(gradeEls.offices, grades.offices, 'ادارات');
-
-    // تغییر رنگ حاشیه کارت بر اساس درصد کلی
-    const card = document.querySelector('.prediction-card');
-    if (card) {
-      if (data.percent > 50) card.style.borderColor = '#f44336';
-      else card.style.borderColor = '#4caf50';
-    }
-
-    // ذخیره وضعیت فعلی برای اعلان بعدی
-    const currentState = {
-      date: data.date,
-      isOff: data.isOff
-    };
-    const prevRaw = localStorage.getItem(LAST_STATE_KEY);
-    if (prevRaw) {
-      try {
-        const prev = JSON.parse(prevRaw);
-        if (prev.date !== currentState.date || prev.isOff !== currentState.isOff) {
-          showOffdayNotification(data);
-        }
-      } catch (e) {
-        // ignore
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'بارگذاری دوباره';
+        btn.classList.remove('is-loading');
       }
     }
-    localStorage.setItem(LAST_STATE_KEY, JSON.stringify(currentState));
+    btn.addEventListener('click', fetchTehran);
+    fetchTehran();
+    setInterval(fetchTehran, 300000);
+  })();
 
-    // به‌روزرسانی تاریخچه تعطیلی
-    offdayHistory = updateOffdayHistory(data, offdayHistory);
-    renderOffdayHistory(offdayHistory);
-  } catch (error) {
-    console.error(error);
-    offDetail.textContent = 'خطا در دریافت وضعیت';
-    offResult.textContent = '---';
+  // ==========================================
+  // 3. Difference Logic
+  // ==========================================
+  function updateDifferenceCard() {
+    const diffEl = document.getElementById('diff-aqi');
+    const statusEl = document.getElementById('diff-status');
+    const metaEl = document.getElementById('diff-meta');
 
-    // تلاش برای نمایش آخرین وضعیت ذخیره‌شده
-    const lastStateRaw = localStorage.getItem(LAST_STATE_KEY);
-    if (lastStateRaw) {
-      try {
-        const lastState = JSON.parse(lastStateRaw);
-        offResult.textContent = lastState.isOff ? 'تعطیل است (قدیمی)' : 'باز است (قدیمی)';
-        offResult.style.color = lastState.isOff ? '#d32f2f' : '#388e3c';
-      } catch (e) {
-        // ignore
+    if (lastIQ === null) {
+      const cached = localStorage.getItem(IQAIR_CACHE_KEY);
+      if (cached) {
+        try {
+          lastIQ = JSON.parse(cached).data.current.pollution.aqius;
+        } catch (e) {}
       }
     }
-  } finally {
-    offBtn.textContent = 'بررسی وضعیت';
-    offBtn.disabled = false;
-    offBtn.classList.remove('is-loading');
+    if (lastTH === null) {
+      const cachedTh = localStorage.getItem(TEHRAN_CACHE_KEY);
+      if (cachedTh) {
+        try {
+          lastTH = JSON.parse(cachedTh).value;
+        } catch (e) {}
+      }
+    }
+
+    if (lastIQ === null || lastTH === null) {
+      diffEl.textContent = '--';
+      statusEl.textContent = 'منتظر دریافت داده‌ها...';
+      statusEl.className = 'status';
+      metaEl.textContent = '---';
+      return;
+    }
+
+    const diff = Math.abs(lastIQ - lastTH);
+    animateNumber(diffEl, diff);
+
+    let cls = '';
+    let txt = '';
+    if (diff <= 10) {
+      cls = 'good';
+      txt = 'اختلاف ناچیز';
+    } else if (diff <= 30) {
+      cls = 'moderate';
+      txt = 'اختلاف قابل توجه';
+    } else {
+      cls = 'unhealthy';
+      txt = 'اختلاف بسیار زیاد';
+    }
+
+    diffEl.className = 'aqi ' + cls;
+    statusEl.className = 'status ' + cls;
+    statusEl.textContent = txt;
+
+    metaEl.innerHTML = `<span style="color:#0288d1">IQAir: ${lastIQ}</span> | <span style="color:#2e7d32">شهرداری: ${lastTH}</span>`;
   }
-}
 
-offBtn.addEventListener('click', checkTomorrowStatus);
-// اجرای خودکار هنگام باز شدن صفحه
-checkTomorrowStatus();
+  // ==========================================
+  // 4. Tomorrow Off Day Logic (JsonBin, بدون AI)
+  // ==========================================
+  const offBtn = document.getElementById('off-btn');
+  const offResult = document.getElementById('off-result');
+  const offDetail = document.getElementById('off-detail');
+  const offMeta = document.getElementById('off-meta');
+  const offHistoryContainer = document.getElementById('off-history');
 
-// اعلان بالای صفحه برای تغییر وضعیت تعطیلی
-function showOffdayNotification(data) {
-  if (!notifyBar || !notifyText || !data) return;
-  const mode = getNotifyPreference();
-  if (mode === 'none') return;
-  if (mode === 'only_off' && !data.isOff) return;
-
-  notifyText.innerHTML = `<strong>به‌روزرسانی تعطیلی:</strong> ${data.message || ''}`;
-  notifyBar.classList.add('visible');
-}
-
-// ==========================================
-// Helper Functions (grades, history, forecast)
-// ==========================================
-function setGradeTag(el, gradeObj, label) {
-  if (!el) return;
-  el.className = 'grade-tag';
-  if (!gradeObj || typeof gradeObj.isOff !== 'boolean') {
-    el.textContent = `${label}: نامشخص`;
-    return;
-  }
-  if (gradeObj.isOff) {
-    el.textContent = `${label}: تعطیل`;
-    el.classList.add('grade-off');
-  } else {
-    el.textContent = `${label}: باز`;
-    el.classList.add('grade-on');
-  }
-}
-
-function loadOffdayHistory() {
-  try {
-    const raw = localStorage.getItem(OFFDAY_HISTORY_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function updateOffdayHistory(data, current) {
-  const history = Array.isArray(current) ? current.slice() : [];
-  if (!data || !data.date) return history;
-
-  const entry = {
-    date: data.date,
-    isOff: !!data.isOff,
-    percent: typeof data.percent === 'number' ? data.percent : parseInt(data.percent, 10) || 0
+  const gradeEls = {
+    elementary: document.getElementById('grade-elementary'),
+    middle: document.getElementById('grade-middle'),
+    high: document.getElementById('grade-high'),
+    university: document.getElementById('grade-university'),
+    offices: document.getElementById('grade-offices')
   };
 
-  const idx = history.findIndex((item) => item.date === entry.date);
-  if (idx >= 0) history[idx] = entry;
-  else history.push(entry);
+  const BIN_ID = '692de28043b1c97be9d1196c';
+  const MASTER_KEY = '$2a$10$57AkCAfM2BgIYN4mEawKE.GKIf.0dUtV5OG6glYN3O6dRQJ5qpgae ';
 
-  const MAX_ITEMS = 7;
-  if (history.length > MAX_ITEMS) {
-    history.splice(0, history.length - MAX_ITEMS);
+  // تنظیمات اعلان تعطیلی
+  const notifyModeSelect = document.getElementById('notify-mode');
+
+  function getNotifyPreference() {
+    const raw = localStorage.getItem(NOTIFY_PREF_KEY);
+    if (raw === 'none' || raw === 'only_off' || raw === 'all') return raw;
+    return 'all';
   }
 
-  try {
-    localStorage.setItem(OFFDAY_HISTORY_KEY, JSON.stringify(history));
-  } catch (e) {}
-
-  return history;
-}
-
-function renderOffdayHistory(history) {
-  if (!offHistoryContainer) return;
-  if (!history || history.length === 0) {
-    offHistoryContainer.textContent = 'هنوز تاریخچه‌ای در این مرورگر ذخیره نشده است.';
-    return;
+  if (notifyModeSelect) {
+    const pref = getNotifyPreference();
+    notifyModeSelect.value = pref;
+    notifyModeSelect.addEventListener('change', () => {
+      localStorage.setItem(NOTIFY_PREF_KEY, notifyModeSelect.value);
+    });
   }
 
-  let html = '<div class="off-history-title">تاریخچه تعطیلی روزهای اخیر (این مرورگر)</div>';
-  history.forEach((item) => {
-    const statusText = item.isOff ? 'تعطیل' : 'باز';
-    const color = item.isOff ? '#b91c1c' : '#166534';
-    const percent = typeof item.percent === 'number' ? item.percent : '--';
-    html += `<div class="off-history-item"><span class="off-history-date">${item.date}</span><span class="off-history-status" style="color:${color}">${statusText} (${percent}%)</span></div>`;
-  });
-  offHistoryContainer.innerHTML = html;
-}
+  // تاریخچه تعطیلی
+  let offdayHistory = loadOffdayHistory();
+  renderOffdayHistory(offdayHistory);
 
-// پیش‌بینی ساده فردا بر اساس روند اخیر AQI (غیر رسمی)
-function updateSimpleForecast() {
-  const forecastAqiEl = document.getElementById('forecast-aqi');
-  const forecastStatusEl = document.getElementById('forecast-status');
-  const forecastMetaEl = document.getElementById('forecast-meta');
-  if (!forecastAqiEl || !forecastStatusEl || !forecastMetaEl) return;
+  async function checkTomorrowStatus() {
+    offBtn.textContent = 'درحال دریافت...';
+    offBtn.disabled = true;
+    offBtn.classList.add('is-loading');
 
-  const values = [];
-  const maxLookBack = 10;
+    try {
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+        headers: {
+          // در صورت Private بودن:
+          // "X-Master-Key": MASTER_KEY
+        }
+      });
 
-  for (let i = aqiHistory.iqair.length - 1; i >= 0 && values.length < maxLookBack; i--) {
-    const v = aqiHistory.iqair[i];
-    if (typeof v === 'number') values.push(v);
+      if (!response.ok) throw new Error('خطا در اتصال');
+
+      const json = await response.json();
+      const data = json.record;
+
+      offResult.textContent = data.isOff ? 'تعطیل است' : 'باز است';
+      offResult.style.color = data.isOff ? '#d32f2f' : '#388e3c';
+
+      offDetail.textContent = data.message;
+      offMeta.textContent = `احتمال: ${data.percent}% | بروزرسانی ادمین: ${new Date(data.lastUpdate).toLocaleTimeString('fa-IR')}`;
+
+      const grades = data.grades || {};
+      setGradeTag(gradeEls.elementary, grades.elementary, 'ابتدایی');
+      setGradeTag(gradeEls.middle, grades.middle, 'متوسطه اول');
+      setGradeTag(gradeEls.high, grades.high, 'متوسطه دوم');
+      setGradeTag(gradeEls.university, grades.university, 'دانشگاه‌ها');
+      setGradeTag(gradeEls.offices, grades.offices, 'ادارات');
+
+      const card = document.querySelector('.prediction-card');
+      if (card) {
+        if (data.percent > 50) card.style.borderColor = '#f44336';
+        else card.style.borderColor = '#4caf50';
+      }
+
+      const currentState = {
+        date: data.date,
+        isOff: data.isOff
+      };
+      const prevRaw = localStorage.getItem(LAST_STATE_KEY);
+      if (prevRaw) {
+        try {
+          const prev = JSON.parse(prevRaw);
+          if (prev.date !== currentState.date || prev.isOff !== currentState.isOff) {
+            showOffdayNotification(data);
+          }
+        } catch (e) {}
+      }
+      localStorage.setItem(LAST_STATE_KEY, JSON.stringify(currentState));
+
+      offdayHistory = updateOffdayHistory(data, offdayHistory);
+      renderOffdayHistory(offdayHistory);
+    } catch (error) {
+      console.error(error);
+      offDetail.textContent = 'خطا در دریافت وضعیت';
+      offResult.textContent = '---';
+
+      const lastStateRaw = localStorage.getItem(LAST_STATE_KEY);
+      if (lastStateRaw) {
+        try {
+          const lastState = JSON.parse(lastStateRaw);
+          offResult.textContent = lastState.isOff ? 'تعطیل است (قدیمی)' : 'باز است (قدیمی)';
+          offResult.style.color = lastState.isOff ? '#d32f2f' : '#388e3c';
+        } catch (e) {}
+      }
+    } finally {
+      offBtn.textContent = 'بررسی وضعیت';
+      offBtn.disabled = false;
+      offBtn.classList.remove('is-loading');
+    }
   }
-  for (let i = aqiHistory.tehran.length - 1; i >= 0 && values.length < maxLookBack; i--) {
-    const v = aqiHistory.tehran[i];
-    if (typeof v === 'number') values.push(v);
+
+  offBtn.addEventListener('click', checkTomorrowStatus);
+  checkTomorrowStatus();
+
+  function showOffdayNotification(data) {
+    if (!notifyBar || !notifyText || !data) return;
+    const mode = getNotifyPreference();
+    if (mode === 'none') return;
+    if (mode === 'only_off' && !data.isOff) return;
+
+    notifyText.innerHTML = `<strong>به‌روزرسانی تعطیلی:</strong> ${data.message || ''}`;
+    notifyBar.classList.add('visible');
   }
 
-  if (values.length < 3) {
-    forecastAqiEl.textContent = '--';
-    forecastAqiEl.className = 'forecast-aqi';
-    forecastStatusEl.textContent = 'داده کافی برای پیش‌بینی ساده وجود ندارد.';
-    forecastStatusEl.className = 'forecast-status';
-    forecastMetaEl.textContent = 'پیش‌بینی غیررسمی؛ نیاز به حداقل چند مقدار اخیر دارد.';
-    return;
+  function setGradeTag(el, gradeObj, label) {
+    if (!el) return;
+    el.className = 'grade-tag';
+    if (!gradeObj || typeof gradeObj.isOff !== 'boolean') {
+      el.textContent = `${label}: نامشخص`;
+      return;
+    }
+    if (gradeObj.isOff) {
+      el.textContent = `${label}: تعطیل`;
+      el.classList.add('grade-off');
+    } else {
+      el.textContent = `${label}: باز`;
+      el.classList.add('grade-on');
+    }
   }
 
-  const avg = Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
-  const first = values[values.length - 1];
-  const last = values[0];
-  const delta = last - first;
-
-  forecastAqiEl.textContent = avg;
-
-  const cat = getAQICategory(avg);
-  forecastAqiEl.className = 'forecast-aqi ' + cat.cls;
-  forecastStatusEl.className = 'forecast-status ' + cat.cls;
-
-  let trendText = '';
-  if (Math.abs(delta) <= 5) {
-    trendText = 'تقریباً ثابت';
-  } else if (delta > 5) {
-    trendText = 'احتمالاً رو به بدتر شدن';
-  } else if (delta < -5) {
-    trendText = 'احتمالاً رو به بهتر شدن';
+  function loadOffdayHistory() {
+    try {
+      const raw = localStorage.getItem(OFFDAY_HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
   }
 
-  forecastStatusEl.textContent = `پیش‌بینی: ${cat.text}${trendText ? '، ' + trendText : ''}`;
-  forecastMetaEl.textContent = `بر اساس میانگین ${values.length} مقدار اخیر AQI در این مرورگر (پیش‌بینی غیررسمی، منبع رسمی نیست).`;
-}
+  function updateOffdayHistory(data, current) {
+    const history = Array.isArray(current) ? current.slice() : [];
+    if (!data || !data.date) return history;
 
-// مقداردهی اولیه نمودار و پیش‌بینی بعد از تعریف همه توابع
-initAqiChart();
-updateSimpleForecast();
-</script>
+    const entry = {
+      date: data.date,
+      isOff: !!data.isOff,
+      percent: typeof data.percent === 'number' ? data.percent : parseInt(data.percent, 10) || 0
+    };
+
+    const idx = history.findIndex((item) => item.date === entry.date);
+    if (idx >= 0) history[idx] = entry;
+    else history.push(entry);
+
+    const MAX_ITEMS = 7;
+    if (history.length > MAX_ITEMS) {
+      history.splice(0, history.length - MAX_ITEMS);
+    }
+
+    try {
+      localStorage.setItem(OFFDAY_HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {}
+
+    return history;
+  }
+
+  function renderOffdayHistory(history) {
+    if (!offHistoryContainer) return;
+    if (!history || history.length === 0) {
+      offHistoryContainer.textContent = 'هنوز تاریخچه‌ای در این مرورگر ذخیره نشده است.';
+      return;
+    }
+
+    let html = '<div class="off-history-title">تاریخچه تعطیلی روزهای اخیر (این مرورگر)</div>';
+    history.forEach((item) => {
+      const statusText = item.isOff ? 'تعطیل' : 'باز';
+      const color = item.isOff ? '#b91c1c' : '#166534';
+      const percent = typeof item.percent === 'number' ? item.percent : '--';
+      html += `<div class="off-history-item"><span class="off-history-date">${item.date}</span><span class="off-history-status" style="color:${color}">${statusText} (${percent}%)</span></div>`;
+    });
+    offHistoryContainer.innerHTML = html;
+  }
+
+  // پیش‌بینی ساده فردا بر اساس روند اخیر AQI (غیر رسمی)
+  function updateSimpleForecast() {
+    const forecastAqiEl = document.getElementById('forecast-aqi');
+    const forecastStatusEl = document.getElementById('forecast-status');
+    const forecastMetaEl = document.getElementById('forecast-meta');
+    if (!forecastAqiEl || !forecastStatusEl || !forecastMetaEl) return;
+
+    const values = [];
+    const maxLookBack = 10;
+
+    for (let i = aqiHistory.iqair.length - 1; i >= 0 && values.length < maxLookBack; i--) {
+      const v = aqiHistory.iqair[i];
+      if (typeof v === 'number') values.push(v);
+    }
+    for (let i = aqiHistory.tehran.length - 1; i >= 0 && values.length < maxLookBack; i--) {
+      const v = aqiHistory.tehran[i];
+      if (typeof v === 'number') values.push(v);
+    }
+
+    if (values.length < 3) {
+      forecastAqiEl.textContent = '--';
+      forecastAqiEl.className = 'forecast-aqi';
+      forecastStatusEl.textContent = 'داده کافی برای پیش‌بینی ساده وجود ندارد.';
+      forecastStatusEl.className = 'forecast-status';
+      forecastMetaEl.textContent = 'پیش‌بینی غیررسمی؛ نیاز به حداقل چند مقدار اخیر دارد.';
+      return;
+    }
+
+    const avg = Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+    const first = values[values.length - 1];
+    const last = values[0];
+    const delta = last - first;
+
+    forecastAqiEl.textContent = avg;
+
+    const cat = getAQICategory(avg);
+    forecastAqiEl.className = 'forecast-aqi ' + cat.cls;
+    forecastStatusEl.className = 'forecast-status ' + cat.cls;
+
+    let trendText = '';
+    if (Math.abs(delta) <= 5) {
+      trendText = 'تقریباً ثابت';
+    } else if (delta > 5) {
+      trendText = 'احتمالاً رو به بدتر شدن';
+    } else if (delta < -5) {
+      trendText = 'احتمالاً رو به بهتر شدن';
+    }
+
+    forecastStatusEl.textContent = `پیش‌بینی: ${cat.text}${trendText ? '، ' + trendText : ''}`;
+    forecastMetaEl.textContent = `بر اساس میانگین ${values.length} مقدار اخیر AQI در این مرورگر (پیش‌بینی غیررسمی، منبع رسمی نیست).`;
+  }
+
+  // مقداردهی اولیه نمودار و پیش‌بینی
+  initAqiChart();
+  updateSimpleForecast();
+  </script>
 
 </body>
 </html>
