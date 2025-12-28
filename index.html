@@ -1267,12 +1267,21 @@
       offDetail.textContent = data.message;
       offMeta.textContent = `احتمال: ${data.percent}% | بروزرسانی ادمین: ${new Date(data.lastUpdate).toLocaleTimeString('fa-IR')}`;
 
-      const grades = data.grades || {};
-      setGradeTag(gradeEls.elementary, grades.elementary, 'ابتدایی');
-      setGradeTag(gradeEls.middle, grades.middle, 'متوسطه اول');
-      setGradeTag(gradeEls.high, grades.high, 'متوسطه دوم');
-      setGradeTag(gradeEls.university, grades.university, 'دانشگاه‌ها');
-      setGradeTag(gradeEls.offices, grades.offices, 'ادارات');
+      const overallIsOff = typeof data.isOff === 'boolean' ? data.isOff : null;
+      const gradesRaw = data.grades || {};
+      const normalizedGrades = {
+        elementary: normalizeOffGrade(gradesRaw.elementary, overallIsOff),
+        middle: normalizeOffGrade(gradesRaw.middle, overallIsOff),
+        high: normalizeOffGrade(gradesRaw.high, overallIsOff),
+        university: normalizeOffGrade(gradesRaw.university, overallIsOff),
+        offices: normalizeOffGrade(gradesRaw.offices, overallIsOff)
+      };
+
+      setGradeTag(gradeEls.elementary, normalizedGrades.elementary, 'ابتدایی');
+      setGradeTag(gradeEls.middle, normalizedGrades.middle, 'متوسطه اول');
+      setGradeTag(gradeEls.high, normalizedGrades.high, 'متوسطه دوم');
+      setGradeTag(gradeEls.university, normalizedGrades.university, 'دانشگاه‌ها');
+      setGradeTag(gradeEls.offices, normalizedGrades.offices, 'ادارات');
 
       const card = document.querySelector('.prediction-card');
       if (card) {
@@ -1320,29 +1329,21 @@
   offBtn.addEventListener('click', checkTomorrowStatus);
   checkTomorrowStatus();
 
-  function showOffdayNotification(data) {
-    if (!notifyBar || !notifyText || !data) return;
-    const mode = getNotifyPreference();
-    if (mode === 'none') return;
-    if (mode === 'only_off' && !data.isOff) return;
+  function showOffdayNotification(data) {     if (!notifyBar || !notifyText || !data) return;    consto mode = getNotifyPreference();    if  (mode === 'none') return;    if  (mode === 'only_off' && !data.isOff) return;
+    notifyText.innerHTML  `<Tstrong>به‌روزرسانی تعطی:</تعstrong> ${data.message || ''}`;   ' notifyBar.classList.add('visible'); i }
+  function normalizeOffGrade(gradeObj, overallIsOff) {     if (gradeObj && typeof gradeObj.isOff === 'boolean') {       return gradeObj;   p }   r if (typeof overallIsOff === 'boolean') {     o return { isOff: overallIsOff };   r }   ; return null; f }
+  function setGradeTag(el, gradeObj, label) {   a if (!el) return;     el.className = 'grade-tag';    if  (!gradeObj || typeof gradeObj.isOff !== 'boolean') {       el.textContent = `${label}: نامشخص`;      return;
+    }    if (gradeObj.isOff) {
+      el.textContent = `${label}: تعطیل`;      el.classList.add('grade-off');
+    } else {      el.textContent = `${label}: باز`;
+      el.classList.add('grade-on');    }_code
+ new </}
 
-    notifyText.innerHTML = `<strong>به‌روزرسانی تعطیلی:</strong> ${data.message || ''}`;
-    notifyBar.classList.add('visible');
-  }
 
-  function setGradeTag(el, gradeObj, label) {
-    if (!el) return;
-    el.className = 'grade-tag';
-    if (!gradeObj || typeof gradeObj.isOff !== 'boolean') {
-      el.textContent = `${label}: نامشخص`;
-      return;
-    }
-    if (gradeObj.isOff) {
-      el.textContent = `${label}: تعطیل`;
-      el.classList.add('grade-off');
-    } else {
-      el.textContent = `${label}: باز`;
-      el.classList.add('grade-on');
+
+
+
+List.add('grade-on');
     }
   }
 
