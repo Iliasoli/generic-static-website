@@ -8,10 +8,7 @@
   <!-- فونت فارسی مدرن -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -85,6 +82,11 @@
       margin-bottom: 24px;
     }
 
+    .bottom-row {
+      display: flex;
+      justify-content: center;
+    }
+
     .card {
       position: relative;
       background: rgba(248, 250, 252, 0.98);
@@ -96,7 +98,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 320px;
+      min-height: 380px;
       box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
       border: 1px solid rgba(148, 163, 184, 0.4);
       overflow: hidden;
@@ -131,6 +133,7 @@
     .top-row .card:nth-child(1) { animation-delay: 0.05s; }
     .top-row .card:nth-child(2) { animation-delay: 0.12s; }
     .top-row .card:nth-child(3) { animation-delay: 0.19s; }
+    .bottom-row .card { animation-delay: 0.26s; }
 
     /* استایل مخصوص کارت تعطیلی (کمی متمایز) */
     .prediction-card {
@@ -160,6 +163,35 @@
       transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.3s ease;
     }
 
+    .aqi::before {
+      content: "";
+      position: absolute;
+      inset: -18px;
+      border-radius: 999px;
+      background: conic-gradient(
+        from 220deg,
+        rgba(56, 189, 248, 0.35),
+        rgba(34, 197, 94, 0.35),
+        rgba(250, 204, 21, 0.35),
+        rgba(248, 113, 113, 0.35),
+        rgba(56, 189, 248, 0.35)
+      );
+      filter: blur(4px);
+      opacity: 0;
+      z-index: -1;
+      transition: opacity 0.4s ease;
+    }
+
+    .aqi.good::before,
+    .aqi.moderate::before,
+    .aqi.unhealthy-sensitive::before,
+    .aqi.unhealthy::before,
+    .aqi.very-unhealthy::before,
+    .aqi.hazardous::before {
+      opacity: 1;
+      animation: pulseSoft 4s ease-in-out infinite;
+    }
+
     /* سایز فونت برای متن کارت تعطیلی باید کمتر از عدد باشد */
     .text-status {
       font-size: 2.3rem;
@@ -171,10 +203,10 @@
 
     .status {
       font-weight: 600;
-      font-size: 0.95rem;
+      font-size: 1rem;
       margin-bottom: 12px;
       min-height: 30px;
-      color: #4b5563;
+      transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.3s ease;
     }
 
     .meta {
@@ -225,59 +257,129 @@
         background 0.2s ease;
     }
 
+    button::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.35), transparent 65%);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    button:hover::before {
+      opacity: 1;
+      transform: scale(1);
+    }
+
     button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 16px 36px rgba(2, 136, 209, 0.55);
-      filter: brightness(1.03);
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.5);
+      filter: brightness(1.02);
     }
 
     button:active {
       transform: translateY(0);
-      box-shadow: 0 10px 24px rgba(2, 136, 209, 0.45);
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
       filter: brightness(0.98);
     }
 
     button:disabled {
-      cursor: default;
+      cursor: not-allowed;
       opacity: 0.8;
       box-shadow: none;
+      transform: none;
     }
 
-    .btn-secondary {
-      background: linear-gradient(135deg, #6b7280, #4b5563);
-      box-shadow: 0 12px 30px rgba(55, 65, 81, 0.35);
+    /* حالت لودینگ دکمه‌ها با انیمیشن چرخان */
+    button.is-loading {
+      padding-inline-start: 32px;
     }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2px 8px;
+    button.is-loading::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
       border-radius: 999px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #0f172a;
-      background: rgba(96, 165, 250, 0.12);
-      border: 1px solid rgba(59, 130, 246, 0.4);
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      border-top-color: transparent;
+      inset-inline-start: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      animation: spin 0.6s linear infinite;
     }
 
-    @keyframes bgMove {
-      0%, 100% { background-position: 0% 0%; }
-      50% { background-position: 100% 100%; }
+    .footer {
+      padding-top: 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #9ca3af;
+      width: 100%;
     }
 
-    @keyframes livePulse {
-      0% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    /* رنگ‌بندی وضعیت‌ها (روی عدد و متن اعمال می‌شود) */
+    .good {
+      color: #22c55e;
+      text-shadow: 0 0 18px rgba(34, 197, 94, 0.5);
+    }
+
+    .moderate {
+      color: #eab308;
+      text-shadow: 0 0 18px rgba(234, 179, 8, 0.45);
+    }
+
+    .unhealthy-sensitive {
+      color: #fb923c;
+      text-shadow: 0 0 18px rgba(248, 153, 72, 0.5);
+    }
+
+    .unhealthy {
+      color: #ef4444;
+      text-shadow: 0 0 18px rgba(248, 113, 113, 0.6);
+    }
+
+    .very-unhealthy {
+      color: #a855f7;
+      text-shadow: 0 0 18px rgba(168, 85, 247, 0.6);
+    }
+
+    .hazardous {
+      color: #be123c;
+      text-shadow: 0 0 18px rgba(190, 18, 60, 0.7);
+    }
+
+    .error-msg {
+      color: #f97373;
+      font-size: 0.8rem;
+      margin-top: 6px;
+      min-height: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding-top: 16px;
       }
-      70% {
-        transform: scale(1.1);
-        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+
+      .page-title {
+        font-size: 1.4rem;
+      }
+
+      .card {
+        width: 100%;
+      }
+    }
+
+    /* انیمیشن‌ها */
+    @keyframes bgMove {
+      0% {
+        background-position: 0% 0%;
+      }
+      50% {
+        background-position: 100% 50%;
       }
       100% {
-        transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        background-position: 0% 100%;
       }
     }
 
@@ -292,16 +394,36 @@
       }
     }
 
-    @media (max-width: 960px) {
-      .card {
-        width: 100%;
-        max-width: 360px;
+    @keyframes pulseSoft {
+      0% {
+        transform: scale(0.96);
+      }
+      50% {
+        transform: scale(1.04);
+      }
+      100% {
+        transform: scale(0.96);
+      }
+    }
+
+    @keyframes livePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+      100% {
+        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: translateY(-50%) rotate(360deg);
       }
     }
   </style>
 </head>
-
 <body>
+
   <div class="app-shell">
     <header class="page-header">
       <div class="page-header-pill">
@@ -309,119 +431,337 @@
         <span>به‌روزرسانی زنده کیفیت هوا</span>
       </div>
       <h1 class="page-title">داشبورد کیفیت هوای تهران</h1>
-      <p class="page-subtitle" id="today-label">وضعیت امروز تهران</p>
+      <p class="page-subtitle">
+        مقایسه لحظه‌ای داده‌های IQAir و سامانه شهرداری، همراه با پیش‌بینی وضعیت تعطیلی فردا.
+      </p>
     </header>
 
-    <main>
-      <div class="top-row">
-        <!-- IQAir card (نمادین / بدون API) -->
-        <section class="card">
-          <h1>کیفیت هوا - IQAir</h1>
-          <div class="aqi" id="aqi-iqair">--</div>
-          <div class="status" id="status-iqair">در حال حاضر داده‌ای دریافت نشده است.</div>
+    <!-- ردیف اول: 3 کارت اصلی -->
+    <div class="top-row">
+      
+      <!-- کارت IQAir -->
+      <div class="card">
+        <h1>تهران (منبع: IQAir)</h1>
+        <div id="iqair-result">
+          <div id="iq-aqi" class="aqi">--</div>
+          <div id="iq-status" class="status">برای دریافت کلیک کنید</div>
           <div class="details">
-            <div class="detail-item">
-              <b>وضعیت</b>
-              <span id="label-iqair">نامشخص</span>
-            </div>
-            <div class="detail-item">
-              <b>منبع</b>
-              <span>iqair.com</span>
-            </div>
+            <div class="detail-item"><b id="iq-temp">--</b>دما (°C)</div>
+            <div class="detail-item"><b id="iq-hum">--</b>رطوبت (%)</div>
+            <div class="detail-item"><b id="iq-wind">--</b>باد (m/s)</div>
           </div>
-          <button type="button" class="btn-secondary" id="btn-refresh-iqair">
-            به‌روزرسانی از IQAir
-          </button>
-        </section>
-
-        <!-- Tehran Municipality card (نمادین) -->
-        <section class="card">
-          <h1>کیفیت هوا - شهرداری تهران</h1>
-          <div class="aqi" id="aqi-tehran">--</div>
-          <div class="status" id="status-tehran">در حال حاضر داده‌ای دریافت نشده است.</div>
-          <div class="details">
-            <div class="detail-item">
-              <b>وضعیت</b>
-              <span id="label-tehran">نامشخص</span>
-            </div>
-            <div class="detail-item">
-              <b>به‌روزرسانی</b>
-              <span id="updated-tehran">---</span>
-            </div>
-          </div>
-          <button type="button" class="btn-secondary" id="btn-refresh-tehran">
-            به‌روزرسانی از سامانه تهران
-          </button>
-        </section>
-
-        <!-- تعطیلی امروز: فقط اطلاع رسمی، بدون AI -->
-        <section class="card prediction-card">
-          <h1>
-            وضعیت تعطیلی امروز
-            <span class="badge">بدون هوش مصنوعی</span>
-          </h1>
-          <div class="text-status" id="offday-main-label">امروز عادی است</div>
-          <div class="status" id="offday-status">
-            تحلیل هوش مصنوعی غیرفعال شده است. برای اطلاع از تعطیلی از «اطلاع رسمی» یا خبرگزاری‌ها استفاده کنید.
-          </div>
-
-          <div class="details">
-            <div class="detail-item">
-              <b>ابتدایی</b>
-              <span id="offday-elementary">نامشخص</span>
-            </div>
-            <div class="detail-item">
-              <b>متوسطه اول / دوم</b>
-              <span id="offday-middle-high">نامشخص</span>
-            </div>
-          </div>
-
-          <button type="button" id="btn-official">
-            اطلاع رسمی
-          </button>
-        </section>
+        </div>
+        <div class="meta" id="iq-meta">بروزرسانی: --</div>
+        <div class="error-msg" id="iq-msg"></div>
+        <button id="iq-btn">دریافت اطلاعات جدید</button>
       </div>
-    </main>
+
+      <!-- کارت شهرداری -->
+      <div class="card">
+        <h1>تهران (منبع: شهرداری)</h1>
+        <div id="th-aqi" class="aqi">...</div>
+        <div id="th-status" class="status">درحال بارگذاری...</div>
+        <div class="meta" id="th-meta">بروزرسانی: --</div>
+        <div class="error-msg" id="th-msg"></div>
+        <button id="th-btn">بارگذاری دوباره</button>
+      </div>
+
+      <!-- کارت اختلاف -->
+      <div class="card">
+        <h1>اختلاف دو منبع</h1>
+        <div id="diff-aqi" class="aqi">--</div>
+        <div id="diff-status" class="status">منتظر دریافت داده‌ها...</div>
+        <div class="meta" id="diff-meta">---</div>
+      </div>
+
+    </div>
+
+    <!-- ردیف دوم: کارت وضعیت تعطیلی (وسط چین) -->
+    <div class="bottom-row">
+      <div class="card prediction-card">
+        <h1>وضعیت تعطیلی فردا</h1>
+        
+        <!-- اینجا به جای عدد، متن نمایش داده می‌شود -->
+        <div id="off-result" class="text-status">...</div>
+        <div id="off-detail" class="status">درحال بررسی...</div>
+        
+        <div class="meta" id="off-meta">احتمال: --%</div>
+        <button id="off-btn">بررسی وضعیت</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      Made By Ilia Soleimany And Bardia Lashkari
+    </div>
   </div>
 
-  <script>
-    // تنظیم برچسب تاریخ امروز به فارسی
-    (function () {
-      const today = new Date();
-      const faDate = today.toLocaleDateString('fa-IR');
-      const labelEl = document.getElementById('today-label');
-      if (labelEl) {
-        labelEl.textContent = 'وضعیت امروز تهران - ' + faDate;
+<script>
+// متغیرهای سراسری
+let lastIQ = null;
+let lastTH = null;
+
+// ==========================================
+// 1. IQAir Logic
+// ==========================================
+(function(){
+  const btn = document.getElementById('iq-btn');
+  const msgEl = document.getElementById('iq-msg');
+  const metaEl = document.getElementById('iq-meta');
+  const API_KEY = '75b599ae-76ca-4089-8487-e88e3da6aa86';
+
+  const cachedData = localStorage.getItem('iqair_cache');
+  if (cachedData) {
+    try {
+      const parsed = JSON.parse(cachedData);
+      showIQData(parsed.data);
+      metaEl.textContent = 'بروزرسانی: ' + parsed.time;
+      lastIQ = parsed.data.current.pollution.aqius;
+      updateDifferenceCard();
+      // صدا زدن تابع تعطیلی وقتی داده‌های IQAir لود شد (اختیاری)
+      checkTomorrowStatus();
+    } catch(e) {
+      localStorage.removeItem('iqair_cache');
+    }
+  }
+
+  async function fetchIQAir(){
+    btn.textContent = 'درحال دریافت...';
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    msgEl.textContent = '';
+
+    try {
+      const url = `https://api.airvisual.com/v2/city?city=Tehran&state=Tehran&country=Iran&key=${API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if(data.status === 'success'){
+        const timeString = new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
+        const cacheObj = { data: data.data, time: timeString };
+        localStorage.setItem('iqair_cache', JSON.stringify(cacheObj));
+        showIQData(data.data);
+        metaEl.textContent = 'بروزرسانی: ' + timeString;
+        
+        lastIQ = data.data.current.pollution.aqius;
+        updateDifferenceCard();
+        checkTomorrowStatus(); // بررسی مجدد تعطیلی با داده‌های جدید
+      } else {
+        throw new Error(data.data.message || 'خطا در دریافت');
       }
-    })();
+    } catch(err) {
+      console.error(err);
+      msgEl.textContent = 'خطا در ارتباط (شاید محدودیت تمام شده)';
+    } finally {
+      btn.textContent = 'دریافت اطلاعات جدید';
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+    }
+  }
 
-    // دکمه اطلاع رسمی: به کاربر می‌گوید از کانال رسمی استفاده کند
-    (function () {
-      const btnOfficial = document.getElementById('btn-official');
-      if (!btnOfficial) return;
+  function showIQData(d){
+    const aqius = d.current.pollution.aqius;
+    const weather = d.current.weather;
+    const aqiEl = document.getElementById('iq-aqi');
 
-      btnOfficial.addEventListener('click', function () {
-        alert('برای اطلاع از تعطیلی امروز، لطفاً اطلاعیه‌های رسمی استانداری تهران یا آموزش و پرورش را از سایت‌های خبری معتبر (ایسنا، ایرنا، مهر و ...) بررسی کنید.');
-      });
-    })();
+    animateNumber(aqiEl, aqius);
+    document.getElementById('iq-temp').textContent = weather.tp;
+    document.getElementById('iq-hum').textContent = weather.hu;
+    document.getElementById('iq-wind').textContent = weather.ws;
+    setStatusColor('iq-aqi', 'iq-status', aqius);
+  }
 
-    // دکمه‌های به‌روزرسانی AQI فعلاً فقط پیام نمایشی نشان می‌دهند
-    (function () {
-      const btnIQAir = document.getElementById('btn-refresh-iqair');
-      const btnTehran = document.getElementById('btn-refresh-tehran');
+  btn.addEventListener('click', fetchIQAir);
+})();
 
-      if (btnIQAir) {
-        btnIQAir.addEventListener('click', function () {
-          alert('به‌روزرسانی زنده از IQAir در این نسخه غیرفعال است. این فقط رابط کاربری است.');
+// ==========================================
+// 2. Air Tehran Logic
+// ==========================================
+(function(){
+  const aqiEl = document.getElementById('th-aqi');
+  const statusEl = document.getElementById('th-status');
+  const metaEl = document.getElementById('th-meta');
+  const btn = document.getElementById('th-btn');
+  const msgEl = document.getElementById('th-msg');
+  const API = 'https://air.tehran.ir/DesktopModules/AirService/Api/Air/AQINow';
+
+  async function fetchTehran(){
+    btn.disabled = true;
+    btn.textContent = 'درحال دریافت...';
+    btn.classList.add('is-loading');
+    msgEl.textContent = '';
+    try {
+      const r = await fetch(API, { cache: 'no-store' });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      const text = await r.text();
+      const m = text.match(/-?\d+(\.\d+)?/);
+      if(m) {
+        const num = Math.round(Number(m[0]));
+        animateNumber(aqiEl, num);
+        setStatusColor('th-aqi', 'th-status', num);
+        metaEl.textContent = 'بروزرسانی: ' + new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
+        lastTH = num;
+        updateDifferenceCard();
+        checkTomorrowStatus(); // بررسی مجدد تعطیلی با داده‌های جدید
+      } else { throw new Error('فرمت نامعتبر'); }
+    } catch(err) {
+      aqiEl.textContent = '---';
+      statusEl.textContent = 'خطا';
+      statusEl.className = 'status';
+      msgEl.textContent = 'عدم دسترسی (نیاز به IP ایران)';
+      lastTH = null;
+      updateDifferenceCard();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'بارگذاری دوباره';
+      btn.classList.remove('is-loading');
+    }
+  }
+  btn.addEventListener('click', fetchTehran);
+  fetchTehran();
+  setInterval(fetchTehran, 300000); 
+})();
+
+// ==========================================
+// 3. Difference Logic
+// ==========================================
+function updateDifferenceCard() {
+  const diffEl = document.getElementById('diff-aqi');
+  const statusEl = document.getElementById('diff-status');
+  const metaEl = document.getElementById('diff-meta');
+
+  if (lastIQ === null || lastTH === null) {
+      // تلاش برای خواندن از کش اگر خالی است
+      if(lastIQ === null) {
+          const cached = localStorage.getItem('iqair_cache');
+          if(cached) { try { lastIQ = JSON.parse(cached).data.current.pollution.aqius; } catch(e){} }
+      }
+      if (lastIQ === null || lastTH === null) {
+        diffEl.textContent = '--';
+        statusEl.textContent = 'منتظر دریافت داده‌ها...';
+        statusEl.className = 'status';
+        return;
+      }
+  }
+
+  const diff = Math.abs(lastIQ - lastTH);
+  animateNumber(diffEl, diff);
+
+  let cls = '', txt = '';
+  if (diff <= 10) { cls = 'good'; txt = 'اختلاف ناچیز'; }
+  else if (diff <= 30) { cls = 'moderate'; txt = 'اختلاف قابل توجه'; }
+  else { cls = 'unhealthy'; txt = 'اختلاف بسیار زیاد'; }
+
+  diffEl.className = 'aqi ' + cls;
+  statusEl.className = 'status ' + cls;
+  statusEl.textContent = txt;
+  
+  metaEl.innerHTML = `<span style="color:#0288d1">IQAir: ${lastIQ}</span> | <span style="color:#2e7d32">شهرداری: ${lastTH}</span>`;
+}
+
+// ==========================================
+// 4. Tomorrow Off Day Logic (Connected to Cloud)
+// ==========================================
+const offBtn = document.getElementById('off-btn');
+const offResult = document.getElementById('off-result');
+const offDetail = document.getElementById('off-detail');
+const offMeta = document.getElementById('off-meta');
+
+// شناسه BIN خود را اینجا قرار دهید
+const BIN_ID = "692de28043b1c97be9d1196c"; 
+// اگر BIN را Private کردید، باید کلید API ر هم اینجا بگذارید، وگرنه لازم نیست
+const MASTER_KEY = "$2a$10$57AkCAfM2BgIYN4mEawKE.GKIf.0dUtV5OG6glYN3O6dRQJ5qpgae "; // اختیاری (فقط اگر Private است)
+
+async function checkTomorrowStatus() {
+    offBtn.textContent = "درحال دریافت...";
+    offBtn.disabled = true;
+    offBtn.classList.add('is-loading');
+    
+    try {
+        // درخواست به Jsonbin برای خواندن آخرین وضعیت
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+            headers: {
+                // اگر Private است این خط را فعال کنید:
+                // "X-Master-Key": MASTER_KEY
+            }
         });
-      }
+        
+        if (!response.ok) throw new Error("خطا در اتصال");
+        
+        const json = await response.json();
+        const data = json.record; // داده‌های اصلی داخل record هستند
 
-      if (btnTehran) {
-        btnTehran.addEventListener('click', function () {
-          alert('به‌روزرسانی زنده از سامانه شهرداری تهران در این نسخه غیرفعال است. این فقط رابط کاربری است.');
-        });
-      }
-    })();
-  </script>
+        // نمایش داده‌ها در کارت
+        offResult.textContent = data.isOff ? "تعطیل است" : "باز است";
+        offResult.style.color = data.isOff ? "#d32f2f" : "#388e3c"; // قرمز یا سبز
+        
+        offDetail.textContent = data.message;
+        offMeta.textContent = `احتمال: ${data.percent}% | بروزرسانی ادمین: ${new Date(data.lastUpdate).toLocaleTimeString('fa-IR')}`;
+        
+        // تغییر رنگ حاشیه کارت بر اساس درصد
+        const card = document.querySelector('.prediction-card');
+        if(data.percent > 50) card.style.borderColor = "#f44336";
+        else card.style.borderColor = "#4caf50";
+
+    } catch (error) {
+        console.error(error);
+        offDetail.textContent = "خطا در دریافت وضعیت";
+        offResult.textContent = "---";
+    } finally {
+        offBtn.textContent = "بررسی وضعیت";
+        offBtn.disabled = false;
+        offBtn.classList.remove('is-loading');
+    }
+}
+
+offBtn.addEventListener('click', checkTomorrowStatus);
+
+// اجرای خودکار هنگام باز شدن صفحه
+checkTomorrowStatus();
+
+// ==========================================
+// Helper Functions
+// ==========================================
+function setStatusColor(aqiId, statusId, value) {
+    const aqiEl = document.getElementById(aqiId);
+    const statusEl = document.getElementById(statusId);
+    const n = Number(value);
+    let txt = '', cls = '';
+    if (n <= 50) { txt = 'پاک'; cls = 'good'; }
+    else if (n <= 100) { txt = 'قابل قبول'; cls = 'moderate'; }
+    else if (n <= 150) { txt = 'ناسالم (گروه‌های حساس)'; cls = 'unhealthy-sensitive'; }
+    else if (n <= 200) { txt = 'ناسالم'; cls = 'unhealthy'; }
+    else if (n <= 300) { txt = 'بسیار ناسالم'; cls = 'very-unhealthy'; }
+    else { txt = 'خطرناک'; cls = 'hazardous'; }
+    aqiEl.className = 'aqi ' + cls;
+    statusEl.textContent = txt;
+    statusEl.className = 'status ' + cls;
+}
+
+function animateNumber(el, newValue, duration = 700) {
+    if (!el) return;
+    const currentText = el.textContent || "";
+    const currentNumeric = parseFloat(currentText.replace(/[^\d.-]/g, ""));
+    const start = isNaN(currentNumeric) ? 0 : currentNumeric;
+    const end = Number(newValue);
+    if (isNaN(end)) {
+        el.textContent = newValue;
+        return;
+    }
+    const startTime = performance.now();
+
+    function frame(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const value = Math.round(start + (end - start) * progress);
+        el.textContent = value;
+        if (progress < 1) {
+            requestAnimationFrame(frame);
+        }
+    }
+
+    requestAnimationFrame(frame);
+}
+</script>
+
 </body>
 </html>
+``
