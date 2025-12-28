@@ -1,11 +1,13 @@
 
+  const cache = {
   Tehran: null
 };
 
 module.exports = async (req, res) => {
   const method = req.method || 'GET';
   const url = new URL(req.url, 'http://localhost');
-  const city = (url.searchParams.get('city') || (req.body && req.body.city) || 'Tehran').trim();
+  const body = req.body || {};
+  const city = (url.searchParams.get('city') || body.city || 'Tehran').trim();
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
@@ -20,6 +22,15 @@ module.exports = async (req, res) => {
     }
 
     if (method === 'POST') {
+      const manual = body.manual;
+
+      if (manual && typeof manual === 'object') {
+        const normalized = buildManualResult(manual);
+        cache[city] = normalized;
+        res.statusCode = 200;
+        return res.end(JSON.stringify(normalized));
+      }
+
       // AI بخش هوش مصنوعی برای تحلیل تعطیلی غیرفعال شده است.
       const today = new Date();
       const faDate = today.toLocaleDateString('fa-IR');
@@ -60,3 +71,44 @@ module.exports = async (req, res) => {
     );
   }
 };
+
+function buildManualResult(manual) {
+  const now = new Date().toISOString();
+  const overall = manual.overall || {};
+  const grades = manual.grades || {};
+
+  const overallIsOff = !!overall.isOff;
+
+  const normalizedOverall = {
+    isOff: overallIsOff,
+    probability:
+      typeof overall.probability === 'number' ? overall.probability : 1,
+    sourcesCount:
+      typeof overall.sourcesCount === 'number' ? overall.sourcesCount : 0,
+    updatedAt: overall.updatedAt || now,
+    message: overall.message || overall.reason || ''
+  };
+
+  const normalizedGrades = {
+    elementary: normalizeGrade(grades.elementary, overallIsOff),
+    middle: normalizeGrade(grades.middle, overallIsOff),
+    high: normalizeGrade(grades.high, overallIsOff),
+    university: normalizeGrade(grades.university, overallIsOff),
+    offices: normalizeGrade(grades.offices, overallIsOff)
+  };
+
+  return {
+    overall: normalizedOverall,
+    grades: normalizedGrades
+  };
+}
+
+function normalizeGrade(grade, defaultIsOff) {
+  const obj = grade || {};
+  const isOff =
+    typeof obj.isOff === 'boolean' ? obj.isOff : !!defaultIsOff;
+  const probability =
+    typeof obj.probability === 'number' ? obj.probability : 1;
+
+  return { isOff, probability };
+}

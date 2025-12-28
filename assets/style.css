@@ -59,3 +59,110 @@ footer {
   }
 
 }
+
+/* Admin page layout */
+.admin-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.admin-section {
+  margin-bottom: 1.2rem;
+}
+
+.admin-section h2 {
+  margin: 0 0 0.6rem 0;
+  font-size: 1.1rem;
+}
+
+.admin-section .hint {
+  margin: 0 0 0.8rem 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+
+.field-row label {
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  font-size: 0.92rem;
+}
+
+.field-row input,
+.field-row select,
+.field-row textarea {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #d0d4e0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.field-row textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.button-row button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: #2b5cff;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(43,92,255,0.24);
+  transition: transform 0.05s ease-out, box-shadow 0.05s ease-out, background 0.15s ease-out;
+}
+
+.button-row button.secondary {
+  background: #f3f4f6;
+  color: #111827;
+  box-shadow: none;
+}
+
+.button-row button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(43,92,255,0.28);
+}
+
+.button-row button.secondary:hover {
+  box-shadow: 0 4px 10px rgba(15,23,42,0.12);
+}
+
+.status-message {
+  font-size: 0.92rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.status-raw {
+  background: #0b1120;
+  color: #e5e7eb;
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.78rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.admin-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
