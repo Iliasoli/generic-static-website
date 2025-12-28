@@ -98,10 +98,36 @@ async function runGeminiHolidayAnalysis(city, context) {
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const faDate = tomorrow.toLocaleDateString('fa-IR');
 
+  // --- وب‌اسکرپینگ ساده از ۳ منبع: ایرنا، ایسنا، استانداری تهران ---
+  const sources = [
+    { name: 'IRNA', url: 'https://www.irna.ir' },
+    { name: 'ISNA', url: 'https://www.isna.ir' },
+    { name: 'TehranGov', url: 'https://ostan-th.ir' } // سایت استانداری تهران
+  ];
+  const MAX_CHARS_PER_SOURCE = 2500;
+
+  let combinedText = '';
+  let usedSources = 0;
+
+  for (const src of sources) {
+    try {
+      const r = await fetch(src.url, { redirect: 'follow' });
+      if (!r.ok) continue;
+      const html = await r.text();
+      const plain = stripHtml(html).slice(0, MAX_CHARS_PER_SOURCE);
+      combinedText += `\n\n===== SOURCE: ${src.name} (${src.url}) =====\n` + plain;
+      usedSources += 1;
+    } catch (e) {
+      console.error('Source fetch error:', src.url, e.message || e);
+    }
+  }
+
   const prompt = buildGeminiPrompt({
     city,
     tomorrowFa: faDate,
-    context
+    context,
+    newsText: combinedText,
+    sourcesCount: usedSources
   });
 
   const geminiResponse = await callGemini(prompt);
@@ -140,13 +166,13 @@ async function runGeminiHolidayAnalysis(city, context) {
         university: { isOff: false, probability: 30 },
         offices: { isOff: false, probability: 30 }
       },
-      sourcesCount: 0,
+      sourcesCount: usedSources,
       debugRaw: geminiResponse,
       debugError: e && e.message ? e.message : String(e)
     };
   }
 
-  parsed.sourcesCount = parsed.sourcesCount || 0;
+  parsed.sourcesCount = parsed.sourcesCount || usedSources || 0;
   if (!parsed.overall) {
     parsed.overall = {
       isOff: false,
@@ -167,17 +193,23 @@ async function runGeminiHolidayAnalysis(city, context) {
   return parsed;
 }
 
-function buildGeminiPrompt({ city, tomorrowFa, context }) {
+function buildGeminiPrompt({ city, tomorrowFa, context, newsText, sourcesCount }) {
   const aqiPart =
     context && (context.lastIQ != null || context.lastTH != null)
       ? `\n\nداده‌های کیفیت هوا (اگر کمک می‌کند):\n- AQI منبع IQAir: ${context.lastIQ ?? 'نامشخص'}\n- AQI منبع شهرداری: ${context.lastTH ?? 'نامشخص'}\n`
       : '';
 
+  const newsPart = newsText
+    ? `\n\nمتن‌های زیر بخش‌هایی از خبرگزاری‌ها و سایت‌های رسمی (ایرنا، ایسنا، استانداری تهران) هستند. آن‌ها را بخوان و فقط در صورتی که به‌صورت واضح درباره تعطیلی فردا در تهران صحبت می‌کنند، از آن‌ها استفاده کن:\n-----------------------------\n${newsText}\n-----------------------------\n`
+    : '\n(هیچ متن خبری مستقیمی ارسال نشده است؛ اگر اطلاع رسمی مخصوص فردا نمی‌شناسی، با احتیاط و احتمال پایین صحبت کن.)\n';
+
   return `
-شما یک مدل زبانی هستید که باید درباره تعطیلی فردا در شهر ${city} (تهران) یک تحلیل بدهید.
+شما یک مدل زبانی هستید که باید درباره تعطیلی فردا در شهر ${city} (تهران) تحلیل بدهید.
 تاریخ فردا (تقریبی به تقویم شمسی): ${tomorrowFa}.
+تعداد منابع خبری گرفته‌شده: ${sourcesCount ?? 0}.
 
 ${aqiPart}
+${newsPart}
 
 مقاطع مورد نظر:
 - elementary: مدارس ابتدایی
@@ -186,8 +218,9 @@ ${aqiPart}
 - university: دانشگاه‌ها و مؤسسات آموزش عالی
 - offices: ادارات دولتی، سازمان‌ها و بانک‌ها
 
-اگر اطلاعات دقیقی از تعطیلی فردا ندارید، صادقانه بگو که «اطلاع قطعی ندارم» و احتمالات را پایین بگذار (مثلاً ۲۰-۴۰٪).
-اگر نشانه‌ای قوی از تعطیلی یک مقطع خاص وجود دارد (مثلاً در خبرها یا اطلاعیه‌های رسمی که می‌شناسی)، برای همان مقطع isOff را true و probability را بالا (مثلاً ۷۰-۹۵٪) تنظیم کن.
+اگر در متن‌های خبری فوق (از ایرنا، ایسنا، استانداری تهران) هیچ اشاره‌ی رسمی و واضحی به تعطیلی فردا در تهران ندیدی، صادقانه بگو که اطلاع قطعی نداری و احتمالات را پایین بگذار (مثلاً ۲۰-۴۰٪) و در reason توضیح بده که «اطلاعیه رسمی در متن‌ها پیدا نشد».
+اگر در متن‌ها دیدی که «مدارس ابتدایی تهران فردا تعطیل هستند» یا مشابه آن، برای elementary مقدار isOff را true بگذار و احتمال را بالا (مثلاً ۷۰-۹۵٪) تنظیم کن و در reason جمله‌ای کوتاه از محتوا یا خلاصه آن را بنویس.
+همین منطق را برای سایر مقاطع اعمال کن (middle, high, university, offices) اگر در متن‌ها درباره آن‌ها صحبت شده بود.
 
 فقط و فقط یک شیء JSON با ساختار زیر برگردان (هیچ متن دیگر، هیچ توضیح اضافی، هیچ بلاک کد):
 
@@ -204,7 +237,7 @@ ${aqiPart}
     "university": { "isOff": true/false, "probability": 0-100, "reason": "..." },
     "offices":    { "isOff": true/false, "probability": 0-100, "reason": "..." }
   },
-  "sourcesCount": 0
+  "sourcesCount": ${sourcesCount ?? 0}
 }
 `;
 }
