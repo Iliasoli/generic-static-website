@@ -53,11 +53,24 @@ module.exports = async (req, res) => {
     res.end(JSON.stringify({ error: 'method-not-allowed' }));
   } catch (err) {
     console.error('AI API error:', err);
+
+    const msg = err && err.message ? String(err.message) : String(err);
+    if (msg.startsWith('quota-exceeded:')) {
+      res.statusCode = 503;
+      return res.end(
+        JSON.stringify({
+          error: 'ai-quota-exceeded',
+          message:
+            'سرویس هوش مصنوعی موقتاً به‌دلیل محدودیت کوتا یا پلن غیر فعال است. بعداً دوباره تلاش کنید یا تنظیمات Gemini API را بررسی کنید.'
+        })
+      );
+    }
+
     res.statusCode = 500;
     res.end(
       JSON.stringify({
         error: 'ai-analysis-failed',
-        message: err && err.message ? err.message : String(err),
+        message: msg,
         stack: err && err.stack ? err.stack : undefined
       })
     );
@@ -236,8 +249,10 @@ async function callGemini(prompt) {
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error('Gemini API error: ' + resp.status + ' ' + text);
-  }
+    if (resp.status === 429) {
+      throw new Error('quota-exceeded:' + text);
+    }
+    throw new Error('Gemini API}
 
   const data = await resp.json();
   const candidates = data.candidates || [];
