@@ -483,7 +483,7 @@
     #aqi-history-chart {
       width: 100%;
       max-width: 100%;
-      height: 200px;
+      height: 140px;
     }
 
     /* توصیه‌های سلامتی زیر کارت‌ها */
@@ -847,6 +847,12 @@ function initAqiChart() {
   const canvas = document.getElementById('aqi-history-chart');
   if (!canvas || typeof Chart === 'undefined') return;
 
+  // ارتفاع ثابت و غیرفعال کردن حالت واکنش‌گرا برای جلوگیری از محاسبات سنگین
+  canvas.height = 140;
+  if (!canvas.width) {
+    canvas.width = canvas.clientWidth || 400;
+  }
+
   aqiHistoryChart = new Chart(canvas, {
     type: 'line',
     data: {
@@ -872,33 +878,10 @@ function initAqiChart() {
         }
       ]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: {
-            font: {
-              family: 'Vazirmatn'
-            }
-          }
-        },
-        tooltip: {
-          rtl: true
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            maxTicksLimit: 7,
-            autoSkip: true,
-            maxRotation: 0
-          }
-        },
-        y: {
-          beginAtZero: true,
-          suggestedMax: 200
-        }
+    options: {       responsive: false,       maintainAspectRatio: false,       plugins: {         legend: {           labels: {             font: {               family: 'Vazirmatn'             }          }
+        },         tooltip: {         : rtl: true       : }       },      scales}: {       c x: {           ticks: {           i maxTicksLimit: 7,           i autoSkip: true,           i maxRotation: 0         x }         },         y: {         , beginAtZero: true,         g suggestedMax: 200         }     t }   : } 0 });}</
+
+     }
       }
     }
   });
