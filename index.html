@@ -1,1 +1,1460 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>داشبورد کیفیت هوای تهران</title>
 
+  <!-- فونت فارسی مدرن -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: radial-gradient(circle at top, #0f172a, #020617 55%, #111827);
+      background-size: 200% 200%;
+      animation: bgMove 35s ease-in-out infinite;
+      font-family: "Vazirmatn", system-ui, "Segoe UI", Roboto, sans-serif;
+      color: #111827;
+    }
+
+    .app-shell {
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .page-header {
+      text-align: center;
+      color: #e5e7eb;
+      margin-bottom: 16px;
+    }
+
+    .page-header-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      font-size: 0.8rem;
+      margin-bottom: 12px;
+    }
+
+    .dot-live {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: livePulse 1.6s ease-out infinite;
+    }
+
+    .page-title {
+      margin: 0 0 6px;
+      font-size: 1.7rem;
+      letter-spacing: -0.02em;
+    }
+
+    .page-subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #cbd5f5;
+    }
+
+    /* نوار اعلان تغییرات تعطیلی */
+    .notify-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 auto 16px;
+      padding: 8px 12px;
+      max-width: 1200px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.09);
+      border: 1px solid rgba(56, 189, 248, 0.6);
+      color: #0f172a;
+      font-size: 0.82rem;
+    }
+    .notify-bar.visible {
+      display: flex;
+    }
+    .notify-bar strong {
+      color: #0369a1;
+    }
+    .notify-bar button {
+      width: auto;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      box-shadow: none;
+      background: linear-gradient(135deg, #6b7280, #4b5563);
+    }
+
+    /* ردیف کارت‌ها */
+    .top-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .bottom-row {
+      display: flex;
+      justify-content: center;
+    }
+
+    .card {
+      position: relative;
+      background: rgba(248, 250, 252, 0.98);
+      backdrop-filter: blur(18px);
+      padding: 24px 22px 20px;
+      border-radius: 20px;
+      width: 320px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 380px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(18px);
+      animation: cardIn 0.7s ease-out forwards;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 65%);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 24px 65px rgba(15, 23, 42, 0.42);
+      border-color: rgba(59, 130, 246, 0.7);
+    }
+
+    .card:hover::before {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .top-row .card:nth-child(1) { animation-delay: 0.05s; }
+    .top-row .card:nth-child(2) { animation-delay: 0.12s; }
+    .top-row .card:nth-child(3) { animation-delay: 0.19s; }
+    .bottom-row .card { animation-delay: 0.26s; }
+
+    /* استایل مخصوص کارت تعطیلی (کمی متمایز) */
+    .prediction-card {
+      border-width: 1.5px;
+      border-color: rgba(129, 140, 248, 0.7);
+      background:
+        radial-gradient(circle at top, rgba(129, 140, 248, 0.14), transparent 55%),
+        rgba(248, 250, 252, 0.98);
+    }
+
+    .card h1 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      color: #111827;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+      padding-bottom: 6px;
+    }
+
+    .aqi {
+      position: relative;
+      font-size: 4.4rem;
+      font-weight: 800;
+      margin: 18px 0 10px;
+      line-height: 1;
+      direction: ltr;
+      letter-spacing: -0.04em;
+      transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .aqi::before {
+      content: "";
+      position: absolute;
+      inset: -18px;
+      border-radius: 999px;
+      background: conic-gradient(
+        from 220deg,
+        rgba(56, 189, 248, 0.35),
+        rgba(34, 197, 94, 0.35),
+        rgba(250, 204, 21, 0.35),
+        rgba(248, 113, 113, 0.35),
+        rgba(56, 189, 248, 0.35)
+      );
+      filter: blur(4px);
+      opacity: 0;
+      z-index: -1;
+      transition: opacity 0.4s ease;
+    }
+
+    .aqi.good::before,
+    .aqi.moderate::before,
+    .aqi.unhealthy-sensitive::before,
+    .aqi.unhealthy::before,
+    .aqi.very-unhealthy::before,
+    .aqi.hazardous::before {
+      opacity: 1;
+      animation: pulseSoft 4s ease-in-out infinite;
+    }
+
+    /* سایز فونت برای متن کارت تعطیلی باید کمتر از عدد باشد */
+    .text-status {
+      font-size: 2.3rem;
+      font-weight: 800;
+      margin: 14px 0 6px;
+      line-height: 1.2;
+      color: #111827;
+    }
+
+    .status {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      min-height: 30px;
+      transition: color 0.3s ease, text-shadow 0.3s ease, transform 0.3s ease;
+    }
+
+    .meta {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-top: auto;
+    }
+
+    .details {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(226, 232, 240, 0.9);
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+
+    .detail-item b {
+      display: block;
+      font-size: 1.1rem;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    /* تگ‌های مقاطع (ابتدایی، متوسطه، ... ) */
+    .grade-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      justify-content: center;
+    }
+
+    .grade-tag {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: #4b5563;
+      background: rgba(248, 250, 252, 0.96);
+    }
+
+    .grade-tag.grade-on {
+      border-color: #22c55e;
+      color: #166534;
+      background: rgba(22, 101, 52, 0.08);
+    }
+
+    .grade-tag.grade-off {
+      border-color: #ef4444;
+      color: #7f1d1d;
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    button {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 0;
+      background: linear-gradient(135deg, #0288d1, #06b6d4);
+      color: #f9fafb;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(2, 136, 209, 0.45);
+      transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        filter 0.2s ease,
+        background 0.2s ease;
+    }
+
+    button::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.35), transparent 65%);
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    button:hover::before {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 40px rgba(37, 99, 235, 0.5);
+      filter: brightness(1.02);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+      filter: brightness(0.98);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.8;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* حالت لودینگ دکمه‌ها با انیمیشن چرخان */
+    button.is-loading {
+      padding-inline-start: 32px;
+    }
+
+    button.is-loading::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      border-top-color: transparent;
+      inset-inline-start: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      animation: spin 0.6s linear infinite;
+    }
+
+    .footer {
+      padding-top: 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #9ca3af;
+      width: 100%;
+    }
+
+    /* رنگ‌بندی وضعیت‌ها (روی عدد و متن اعمال می‌شود) */
+    .good {
+      color: #22c55e;
+      text-shadow: 0 0 18px rgba(34, 197, 94, 0.5);
+    }
+
+    .moderate {
+      color: #eab308;
+      text-shadow: 0 0 18px rgba(234, 179, 8, 0.45);
+    }
+
+    .unhealthy-sensitive {
+      color: #fb923c;
+      text-shadow: 0 0 18px rgba(248, 153, 72, 0.5);
+    }
+
+    .unhealthy {
+      color: #ef4444;
+      text-shadow: 0 0 18px rgba(248, 113, 113, 0.6);
+    }
+
+    .very-unhealthy {
+      color: #a855f7;
+      text-shadow: 0 0 18px rgba(168, 85, 247, 0.6);
+    }
+
+    .hazardous {
+      color: #be123c;
+      text-shadow: 0 0 18px rgba(190, 18, 60, 0.7);
+    }
+
+    .error-msg {
+      color: #f97373;
+      font-size: 0.8rem;
+      margin-top: 6px;
+      min-height: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding-top: 16px;
+      }
+
+      .page-title {
+        font-size: 1.4rem;
+      }
+
+      .card {
+        width: 100%;
+      }
+    }
+
+    /* انیمیشن‌ها */
+    @keyframes bgMove {
+      0% { background-position: 0% 0%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 100%; }
+    }
+
+    @keyframes cardIn {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes pulseSoft {
+      0% { transform: scale(0.96); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(0.96); }
+    }
+
+    @keyframes livePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+      100% {
+        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: translateY(-50%) rotate(360deg);
+      }
+    }
+
+    /* کارت نمودار تاریخچه AQI */
+    .chart-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .chart-card {
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    #aqi-history-chart {
+      width: 100%;
+      max-width: 100%;
+      height: 140px;
+    }
+
+    /* توصیه‌های سلامتی زیر کارت‌ها */
+    .health-tips {
+      font-size: 0.78rem;
+      color: #4b5563;
+      margin-top: 8px;
+      line-height: 1.7;
+      text-align: justify;
+    }
+
+    /* تنظیمات اعلان تعطیلی */
+    .notify-settings {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      text-align: right;
+      color: #4b5563;
+    }
+
+    .notify-settings select {
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      font-family: inherit;
+      font-size: 0.78rem;
+      background: rgba(248, 250, 252, 0.96);
+      color: #111827;
+    }
+
+    /* تاریخچه تعطیلی */
+    .off-history {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(209, 213, 219, 0.9);
+      font-size: 0.78rem;
+      text-align: right;
+      color: #4b5563;
+    }
+
+    .off-history-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .off-history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .off-history-date {
+      opacity: 0.9;
+    }
+
+    /* پیش‌بینی فردا */
+    .forecast-block {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(209, 213, 219, 0.9);
+      text-align: center;
+    }
+
+    .forecast-title {
+      font-size: 0.8rem;
+      color: #4b5563;
+      margin-bottom: 4px;
+    }
+
+    .forecast-main {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .forecast-aqi {
+      font-size: 1.6rem;
+      font-weight: 700;
+      direction: ltr;
+    }
+
+    .forecast-status {
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .theme-toggle-btn {
+      margin-top: 8px;
+      width: auto;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      box-shadow: none;
+    }
+
+    /* تم روشن */
+    body.theme-light {
+      background-image: radial-gradient(circle at top, #e5e7eb, #f9fafb 55%, #e5e7eb);
+      color: #111827;
+    }
+
+    body.theme-light .page-header {
+      color: #111827;
+    }
+
+    body.theme-light .page-subtitle {
+      color: #4b5563;
+    }
+
+    body.theme-light .page-header-pill {
+      background: rgba(243, 244, 246, 0.9);
+      border-color: rgba(148, 163, 184, 0.6);
+      color: #111827;
+    }
+
+    body.theme-light .card {
+      background: #ffffff;
+      box-shadow: 0 18px 40px rgba(148, 163, 184, 0.5);
+      border-color: rgba(148, 163, 184, 0.7);
+    }
+
+    body.theme-light .prediction-card {
+      background:
+        radial-gradient(circle at top, rgba(129, 140, 248, 0.12), transparent 55%),
+        #ffffff;
+    }
+
+    body.theme-light .notify-bar {
+      background: rgba(59, 130, 246, 0.08);
+      border-color: rgba(59, 130, 246, 0.6);
+    }
+
+    body.theme-light .footer {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+    <!-- نوار اعلان تغییرات تعطیلی -->
+    <div id="notify-bar" class="notify-bar">
+      <span id="notify-text"></span>
+      <button type="button" id="notify-close">بستن</button>
+    </div>
+
+    <header class="page-header">
+      <div class="page-header-pill">
+        <span class="dot-live"></span>
+        <span>به‌روزرسانی زنده کیفیت هوا</span>
+      </div>
+      <h1 class="page-title">داشبورد کیفیت هوای تهران</h1>
+      <p class="page-subtitle">
+        مقایسه لحظه‌ای داده‌های IQAir و سامانه شهرداری، همراه با وضعیت تعطیلی فردا.
+      </p>
+      <button type="button" id="theme-toggle-btn" class="theme-toggle-btn">تم روشن</button>
+    </header>
+
+    <!-- ردیف اول: 3 کارت اصلی -->
+    <div class="top-row">
+      <!-- کارت IQAir -->
+      <div class="card">
+        <h1>تهران (منبع: IQAir)</h1>
+        <div id="iqair-result">
+          <div id="iq-aqi" class="aqi">--</div>
+          <div id="iq-status" class="status">برای دریافت کلیک کنید</div>
+          <div class="details">
+            <div class="detail-item"><b id="iq-temp">--</b>دما (°C)</div>
+            <div class="detail-item"><b id="iq-hum">--</b>رطوبت (%)</div>
+            <div class="detail-item"><b id="iq-wind">--</b>باد (m/s)</div>
+          </div>
+        </div>
+        <div class="health-tips" id="iq-tips"></div>
+        <div class="meta" id="iq-meta">بروزرسانی: --</div>
+        <div class="error-msg" id="iq-msg"></div>
+        <button id="iq-btn">دریافت اطلاعات جدید</button>
+      </div>
+
+      <!-- کارت شهرداری -->
+      <div class="card">
+        <h1>تهران (منبع: شهرداری)</h1>
+        <div id="th-aqi" class="aqi">...</div>
+        <div id="th-status" class="status">درحال بارگذاری...</div>
+        <div class="health-tips" id="th-tips"></div>
+        <div class="meta" id="th-meta">بروزرسانی: --</div>
+        <div class="error-msg" id="th-msg"></div>
+        <button id="th-btn">بارگذاری دوباره</button>
+      </div>
+
+      <!-- کارت اختلاف -->
+      <div class="card">
+        <h1>اختلاف دو منبع</h1>
+        <div id="diff-aqi" class="aqi">--</div>
+        <div id="diff-status" class="status">منتظر دریافت داده‌ها...</div>
+        <div class="meta" id="diff-meta">---</div>
+      </div>
+    </div>
+
+    <!-- ردیف میانی: نمودار تاریخچه AQI -->
+    <div class="chart-row">
+      <div class="card chart-card">
+        <h1>روند تغییرات شاخص آلودگی هوا</h1>
+        <canvas id="aqi-history-chart"></canvas>
+        <div class="meta" id="history-meta">نمایش آخرین ۵۰ مقدار ثبت‌شده از هر منبع (در این مرورگر).</div>
+      </div>
+    </div>
+
+    <!-- ردیف دوم: کارت وضعیت تعطیلی فردا -->
+    <div class="bottom-row">
+      <div class="card prediction-card">
+        <h1>وضعیت تعطیلی فردا</h1>
+        <div id="off-result" class="text-status">...</div>
+        <div id="off-detail" class="status">درحال بررسی...</div>
+
+        <!-- تگ‌های مقاطع مختلف -->
+        <div class="grade-tags">
+          <span class="grade-tag" id="grade-elementary">ابتدایی: نامشخص</span>
+          <span class="grade-tag" id="grade-middle">متوسطه اول: نامشخص</span>
+          <span class="grade-tag" id="grade-high">متوسطه دوم: نامشخص</span>
+          <span class="grade-tag" id="grade-university">دانشگاه‌ها: نامشخص</span>
+          <span class="grade-tag" id="grade-offices">ادارات: نامشخص</span>
+        </div>
+
+        <div class="meta" id="off-meta">احتمال: --%</div>
+
+        <div class="forecast-block" id="forecast-block">
+          <div class="forecast-title">پیش‌بینی ساده کیفیت هوای فردا (غیررسمی)</div>
+          <div class="forecast-main">
+            <span id="forecast-aqi" class="forecast-aqi">--</span>
+            <span id="forecast-status" class="forecast-status">درحال آماده‌سازی...</span>
+          </div>
+          <div class="meta" id="forecast-meta">بر اساس روند مقادیر اخیر AQI در این مرورگر (منبع رسمی نیست).</div>
+        </div>
+
+        <div class="notify-settings">
+          <div>تنظیم اعلان تغییرات تعطیلی:</div>
+          <select id="notify-mode">
+            <option value="all">اعلان برای هر تغییر</option>
+            <option value="only_off">فقط وقتی فردا تعطیل می‌شود</option>
+            <option value="none">بدون اعلان</option>
+          </select>
+        </div>
+
+        <div class="off-history" id="off-history"></div>
+
+        <button id="off-btn">بررسی وضعیت</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      Made By Ilia Soleimany And Bardia Lashkari
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+  // متغیرهای سراسری
+  let lastIQ = null;
+  let lastTH = null;
+
+  // کلیدهای ذخیره‌سازی
+  const IQAIR_CACHE_KEY = 'iqair_cache';
+  const TEHRAN_CACHE_KEY = 'tehran_aqi_cache_v1';
+  const AQI_HISTORY_KEY = 'aqi_history_v1';
+  const LAST_STATE_KEY = 'offday_last_state_v1';
+  const OFFDAY_HISTORY_KEY = 'offday_history_v1';
+  const NOTIFY_PREF_KEY = 'offday_notify_pref_v1';
+  const THEME_KEY = 'theme_preference_v1';
+
+  // نمودار و تاریخچه AQI
+  let aqiHistory = loadAQIHistory();
+  let aqiHistoryChart = null;
+
+  // ==========================================
+  // Notification bar for off-day changes
+  // ==========================================
+  const notifyBar = document.getElementById('notify-bar');
+  const notifyText = document.getElementById('notify-text');
+  const notifyClose = document.getElementById('notify-close');
+  if (notifyClose) {
+    notifyClose.addEventListener('click', () => {
+      notifyBar.classList.remove('visible');
+    });
+  }
+
+  // ==========================================
+  // تم روشن/تاریک
+  // ==========================================
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+
+  function applyTheme(theme) {
+    const isLight = theme === 'light';
+    document.body.classList.toggle('theme-light', isLight);
+    if (themeToggleBtn) {
+      themeToggleBtn.textContent = isLight ? 'تم تیره' : 'تم روشن';
+    }
+  }
+
+  (function initTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    const theme = saved === 'light' || saved === 'dark' ? saved : 'dark';
+    applyTheme(theme);
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener('click', () => {
+        const current = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+        const next = current === 'light' ? 'dark' : 'light';
+        localStorage.setItem(THEME_KEY, next);
+        applyTheme(next);
+      });
+    }
+  })();
+
+  // ==========================================
+  // AQI History & Chart
+  // ==========================================
+  function loadAQIHistory() {
+    try {
+      const raw = localStorage.getItem(AQI_HISTORY_KEY);
+      if (!raw) return { labels: [], iqair: [], tehran: [] };
+      const parsed = JSON.parse(raw);
+      const labels = Array.isArray(parsed.labels) ? parsed.labels : [];
+      const iqair = Array.isArray(parsed.iqair) ? parsed.iqair : [];
+      const tehran = Array.isArray(parsed.tehran) ? parsed.tehran : [];
+      if (labels.length === iqair.length && labels.length === tehran.length) {
+        return { labels, iqair, tehran };
+      }
+    } catch (e) {}
+    return { labels: [], iqair: [], tehran: [] };
+  }
+
+  function saveAQIHistory() {
+    try {
+      localStorage.setItem(AQI_HISTORY_KEY, JSON.stringify(aqiHistory));
+    } catch (e) {}
+  }
+
+  function addHistoryPoint(source, value) {
+    const num = Number(value);
+    if (isNaN(num)) return;
+    const label = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+
+    aqiHistory.labels.push(label);
+    aqiHistory.iqair.push(source === 'iqair' ? num : null);
+    aqiHistory.tehran.push(source === 'tehran' ? num : null);
+
+    const MAX_POINTS = 50;
+    if (aqiHistory.labels.length > MAX_POINTS) {
+      aqiHistory.labels.shift();
+      aqiHistory.iqair.shift();
+      aqiHistory.tehran.shift();
+    }
+
+    saveAQIHistory();
+    updateAqiChart();
+    updateSimpleForecast();
+  }
+
+  function initAqiChart() {
+    const canvas = document.getElementById('aqi-history-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    canvas.height = 140;
+    if (!canvas.width) {
+      canvas.width = canvas.clientWidth || 400;
+    }
+
+    aqiHistoryChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: aqiHistory.labels,
+        datasets: [
+          {
+            label: 'IQAir',
+            data: aqiHistory.iqair,
+            borderColor: '#0288d1',
+            backgroundColor: 'rgba(2, 136, 209, 0.18)',
+            spanGaps: true,
+            tension: 0.3,
+            pointRadius: 2
+          },
+          {
+            label: 'شهرداری',
+            data: aqiHistory.tehran,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.18)',
+            spanGaps: true,
+            tension: 0.3,
+            pointRadius: 2
+          }
+        ]
+      },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: {
+              font: {
+                family: 'Vazirmatn'
+              }
+            }
+          },
+          tooltip: {
+            rtl: true
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 7,
+              autoSkip: true,
+              maxRotation: 0
+            }
+          },
+          y: {
+            beginAtZero: true,
+            suggestedMax: 200
+          }
+        }
+      }
+    });
+  }
+
+  function updateAqiChart() {
+    if (!aqiHistoryChart) return;
+    aqiHistoryChart.data.labels = aqiHistory.labels;
+    if (aqiHistoryChart.data.datasets[0]) {
+      aqiHistoryChart.data.datasets[0].data = aqiHistory.iqair;
+    }
+    if (aqiHistoryChart.data.datasets[1]) {
+      aqiHistoryChart.data.datasets[1].data = aqiHistory.tehran;
+    }
+    aqiHistoryChart.update('none');
+  }
+
+  // ==========================================
+  // Health & AQI helpers
+  // ==========================================
+  function getAQICategory(value) {
+    const n = Number(value);
+    if (isNaN(n)) return { text: '--', cls: '' };
+    if (n <= 50) return { text: 'پاک', cls: 'good' };
+    if (n <= 100) return { text: 'قابل قبول', cls: 'moderate' };
+    if (n <= 150) return { text: 'ناسالم (گروه‌های حساس)', cls: 'unhealthy-sensitive' };
+    if (n <= 200) return { text: 'ناسالم', cls: 'unhealthy' };
+    if (n <= 300) return { text: 'بسیار ناسالم', cls: 'very-unhealthy' };
+    return { text: 'خطرناک', cls: 'hazardous' };
+  }
+
+  function getAQIAdvice(value) {
+    const n = Number(value);
+    if (isNaN(n)) return '';
+    if (n <= 50) {
+      return 'هوای پاک؛ مناسب برای فعالیت‌های روزمره و ورزش در فضای باز.';
+    } else if (n <= 100) {
+      return 'هوای قابل قبول؛ افراد حساس بهتر است مدت حضور طولانی در فضای باز را کاهش دهند.';
+    } else if (n <= 150) {
+      return 'ناسالم برای گروه‌های حساس؛ کودکان، سالمندان و بیماران قلبی/ریوی از فعالیت شدید در فضای باز خودداری کنند.';
+    } else if (n <= 200) {
+      return 'ناسالم؛ همه افراد از فعالیت سنگین در فضای باز خودداری کرده و در صورت امکان در محیط‌های بسته بمانند.';
+    } else if (n <= 300) {
+      return 'بسیار ناسالم؛ توصیه می‌شود فعالیت‌های معمول در فضای باز نیز محدود شود و از ماسک مناسب استفاده گردد.';
+    }
+    return 'خطرناک؛ تا حد امکان در خانه بمانید، درها و پنجره‌ها را بسته نگه دارید و از ماسک‌های فیلتردار استفاده کنید.';
+  }
+
+  function setStatusColor(aqiId, statusId, value) {
+    const aqiEl = document.getElementById(aqiId);
+    const statusEl = document.getElementById(statusId);
+    if (!aqiEl || !statusEl) return;
+    const cat = getAQICategory(value);
+    aqiEl.className = 'aqi ' + cat.cls;
+    statusEl.textContent = cat.text;
+    statusEl.className = 'status ' + cat.cls;
+  }
+
+  function updateHealthTips(value, elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.textContent = getAQIAdvice(value);
+  }
+
+  function animateNumber(el, newValue, duration = 700) {
+    if (!el) return;
+    const currentText = el.textContent || '';
+    const currentNumeric = parseFloat(currentText.replace(/[^\d.-]/g, ''));
+    const start = isNaN(currentNumeric) ? 0 : currentNumeric;
+    const end = Number(newValue);
+    if (isNaN(end)) {
+      el.textContent = newValue;
+      return;
+    }
+    const startTime = performance.now();
+
+    function frame(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const value = Math.round(start + (end - start) * progress);
+      el.textContent = value;
+      if (progress < 1) requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  // ==========================================
+  // 1. IQAir Logic
+  // ==========================================
+  (function () {
+    const btn = document.getElementById('iq-btn');
+    const msgEl = document.getElementById('iq-msg');
+    const metaEl = document.getElementById('iq-meta');
+    const API_KEY = '75b599ae-76ca-4089-8487-e88e3da6aa86';
+
+    const cachedData = localStorage.getItem(IQAIR_CACHE_KEY);
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        showIQData(parsed.data);
+        metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+        lastIQ = parsed.data.current.pollution.aqius;
+        updateDifferenceCard();
+      } catch (e) {
+        localStorage.removeItem(IQAIR_CACHE_KEY);
+      }
+    }
+
+    async function fetchIQAir() {
+      btn.textContent = 'درحال دریافت...';
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+      msgEl.textContent = '';
+
+      try {
+        const url = `https://api.airvisual.com/v2/city?city=Tehran&state=Tehran&country=Iran&key=${API_KEY}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+          const cacheObj = { data: data.data, time: timeString, ts: Date.now() };
+          localStorage.setItem(IQAIR_CACHE_KEY, JSON.stringify(cacheObj));
+          showIQData(data.data);
+          metaEl.textContent = 'بروزرسانی: ' + timeString;
+
+          lastIQ = data.data.current.pollution.aqius;
+          updateDifferenceCard();
+          addHistoryPoint('iqair', lastIQ);
+        } else {
+          throw new Error((data.data && data.data.message) || 'خطا در دریافت');
+        }
+      } catch (err) {
+        console.error(err);
+        msgEl.textContent = 'خطا در ارتباط (شاید محدودیت تمام شده)';
+        const cached = localStorage.getItem(IQAIR_CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            showIQData(parsed.data);
+            metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+            lastIQ = parsed.data.current.pollution.aqius;
+            updateDifferenceCard();
+          } catch (e) {}
+        }
+      } finally {
+        btn.textContent = 'دریافت اطلاعات جدید';
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+      }
+    }
+
+    function showIQData(d) {
+      const aqius = d.current.pollution.aqius;
+      const weather = d.current.weather;
+      const aqiEl = document.getElementById('iq-aqi');
+
+      animateNumber(aqiEl, aqius);
+      document.getElementById('iq-temp').textContent = weather.tp;
+      document.getElementById('iq-hum').textContent = weather.hu;
+      document.getElementById('iq-wind').textContent = weather.ws;
+      setStatusColor('iq-aqi', 'iq-status', aqius);
+      updateHealthTips(aqius, 'iq-tips');
+    }
+
+    btn.addEventListener('click', fetchIQAir);
+  })();
+
+  // ==========================================
+  // 2. Air Tehran Logic
+  // ==========================================
+  (function () {
+    const aqiEl = document.getElementById('th-aqi');
+    const statusEl = document.getElementById('th-status');
+    const metaEl = document.getElementById('th-meta');
+    const btn = document.getElementById('th-btn');
+    const msgEl = document.getElementById('th-msg');
+    const API = 'https://air.tehran.ir/DesktopModules/AirService/Api/Air/AQINow';
+
+    async function fetchTehran() {
+      btn.disabled = true;
+      btn.textContent = 'درحال دریافت...';
+      btn.classList.add('is-loading');
+      msgEl.textContent = '';
+      try {
+        const r = await fetch(API, { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const text = await r.text();
+        const m = text.match(/-?\d+(\.\d+)?/);
+        if (m) {
+          const num = Math.round(Number(m[0]));
+          animateNumber(aqiEl, num);
+          setStatusColor('th-aqi', 'th-status', num);
+          const timeString = new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+          metaEl.textContent = 'بروزرسانی: ' + timeString;
+          lastTH = num;
+          try {
+            localStorage.setItem(TEHRAN_CACHE_KEY, JSON.stringify({ value: num, time: timeString, ts: Date.now() }));
+          } catch (e) {}
+          addHistoryPoint('tehran', num);
+          updateDifferenceCard();
+          updateHealthTips(num, 'th-tips');
+        } else {
+          throw new Error('فرمت نامعتبر');
+        }
+      } catch (err) {
+        console.error(err);
+        msgEl.textContent = 'عدم دسترسی (نیاز به IP ایران)';
+        const cached = localStorage.getItem(TEHRAN_CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            const num = parsed.value;
+            if (typeof num === 'number') {
+              aqiEl.textContent = num;
+              setStatusColor('th-aqi', 'th-status', num);
+              updateHealthTips(num, 'th-tips');
+              metaEl.textContent = 'نمایش از حافظه محلی: ' + (parsed.time || '');
+              lastTH = num;
+              updateDifferenceCard();
+            }
+          } catch (e) {
+            aqiEl.textContent = '---';
+            statusEl.textContent = 'خطا';
+            statusEl.className = 'status';
+          }
+        } else {
+          aqiEl.textContent = '---';
+          statusEl.textContent = 'خطا';
+          statusEl.className = 'status';
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'بارگذاری دوباره';
+        btn.classList.remove('is-loading');
+      }
+    }
+    btn.addEventListener('click', fetchTehran);
+    fetchTehran();
+    setInterval(fetchTehran, 300000);
+  })();
+
+  // ==========================================
+  // 3. Difference Logic
+  // ==========================================
+  function updateDifferenceCard() {
+    const diffEl = document.getElementById('diff-aqi');
+    const statusEl = document.getElementById('diff-status');
+    const metaEl = document.getElementById('diff-meta');
+
+    if (lastIQ === null) {
+      const cached = localStorage.getItem(IQAIR_CACHE_KEY);
+      if (cached) {
+        try {
+          lastIQ = JSON.parse(cached).data.current.pollution.aqius;
+        } catch (e) {}
+      }
+    }
+    if (lastTH === null) {
+      const cachedTh = localStorage.getItem(TEHRAN_CACHE_KEY);
+      if (cachedTh) {
+        try {
+          lastTH = JSON.parse(cachedTh).value;
+        } catch (e) {}
+      }
+    }
+
+    if (lastIQ === null || lastTH === null) {
+      diffEl.textContent = '--';
+      statusEl.textContent = 'منتظر دریافت داده‌ها...';
+      statusEl.className = 'status';
+      metaEl.textContent = '---';
+      return;
+    }
+
+    const diff = Math.abs(lastIQ - lastTH);
+    animateNumber(diffEl, diff);
+
+    let cls = '';
+    let txt = '';
+    if (diff <= 10) {
+      cls = 'good';
+      txt = 'اختلاف ناچیز';
+    } else if (diff <= 30) {
+      cls = 'moderate';
+      txt = 'اختلاف قابل توجه';
+    } else {
+      cls = 'unhealthy';
+      txt = 'اختلاف بسیار زیاد';
+    }
+
+    diffEl.className = 'aqi ' + cls;
+    statusEl.className = 'status ' + cls;
+    statusEl.textContent = txt;
+
+    metaEl.innerHTML = `<span style="color:#0288d1">IQAir: ${lastIQ}</span> | <span style="color:#2e7d32">شهرداری: ${lastTH}</span>`;
+  }
+
+  // ==========================================
+  // 4. Tomorrow Off Day Logic (JsonBin, بدون AI)
+  // ==========================================
+  const offBtn = document.getElementById('off-btn');
+  const offResult = document.getElementById('off-result');
+  const offDetail = document.getElementById('off-detail');
+  const offMeta = document.getElementById('off-meta');
+  const offHistoryContainer = document.getElementById('off-history');
+
+  const gradeEls = {
+    elementary: document.getElementById('grade-elementary'),
+    middle: document.getElementById('grade-middle'),
+    high: document.getElementById('grade-high'),
+    university: document.getElementById('grade-university'),
+    offices: document.getElementById('grade-offices')
+  };
+
+  const BIN_ID = '692de28043b1c97be9d1196c';
+  const MASTER_KEY = '$2a$10$57AkCAfM2BgIYN4mEawKE.GKIf.0dUtV5OG6glYN3O6dRQJ5qpgae ';
+
+  // تنظیمات اعلان تعطیلی
+  const notifyModeSelect = document.getElementById('notify-mode');
+
+  function getNotifyPreference() {
+    const raw = localStorage.getItem(NOTIFY_PREF_KEY);
+    if (raw === 'none' || raw === 'only_off' || raw === 'all') return raw;
+    return 'all';
+  }
+
+  if (notifyModeSelect) {
+    const pref = getNotifyPreference();
+    notifyModeSelect.value = pref;
+    notifyModeSelect.addEventListener('change', () => {
+      localStorage.setItem(NOTIFY_PREF_KEY, notifyModeSelect.value);
+    });
+  }
+
+  // تاریخچه تعطیلی
+  let offdayHistory = loadOffdayHistory();
+  renderOffdayHistory(offdayHistory);
+
+  async function checkTomorrowStatus() {
+    offBtn.textContent = 'درحال دریافت...';
+    offBtn.disabled = true;
+    offBtn.classList.add('is-loading');
+
+    try {
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+        headers: {
+          // در صورت Private بودن:
+          // "X-Master-Key": MASTER_KEY
+        }
+      });
+
+      if (!response.ok) throw new Error('خطا در اتصال');
+
+      const json = await response.json();
+      const data = json.record;
+
+      offResult.textContent = data.isOff ? 'تعطیل است' : 'باز است';
+      offResult.style.color = data.isOff ? '#d32f2f' : '#388e3c';
+
+      offDetail.textContent = data.message;
+      offMeta.textContent = `احتمال: ${data.percent}% | بروزرسانی ادمین: ${new Date(data.lastUpdate).toLocaleTimeString('fa-IR')}`;
+
+      const grades = data.grades || {};
+      setGradeTag(gradeEls.elementary, grades.elementary, 'ابتدایی');
+      setGradeTag(gradeEls.middle, grades.middle, 'متوسطه اول');
+      setGradeTag(gradeEls.high, grades.high, 'متوسطه دوم');
+      setGradeTag(gradeEls.university, grades.university, 'دانشگاه‌ها');
+      setGradeTag(gradeEls.offices, grades.offices, 'ادارات');
+
+      const card = document.querySelector('.prediction-card');
+      if (card) {
+        if (data.percent > 50) card.style.borderColor = '#f44336';
+        else card.style.borderColor = '#4caf50';
+      }
+
+      const currentState = {
+        date: data.date,
+        isOff: data.isOff
+      };
+      const prevRaw = localStorage.getItem(LAST_STATE_KEY);
+      if (prevRaw) {
+        try {
+          const prev = JSON.parse(prevRaw);
+          if (prev.date !== currentState.date || prev.isOff !== currentState.isOff) {
+            showOffdayNotification(data);
+          }
+        } catch (e) {}
+      }
+      localStorage.setItem(LAST_STATE_KEY, JSON.stringify(currentState));
+
+      offdayHistory = updateOffdayHistory(data, offdayHistory);
+      renderOffdayHistory(offdayHistory);
+    } catch (error) {
+      console.error(error);
+      offDetail.textContent = 'خطا در دریافت وضعیت';
+      offResult.textContent = '---';
+
+      const lastStateRaw = localStorage.getItem(LAST_STATE_KEY);
+      if (lastStateRaw) {
+        try {
+          const lastState = JSON.parse(lastStateRaw);
+          offResult.textContent = lastState.isOff ? 'تعطیل است (قدیمی)' : 'باز است (قدیمی)';
+          offResult.style.color = lastState.isOff ? '#d32f2f' : '#388e3c';
+        } catch (e) {}
+      }
+    } finally {
+      offBtn.textContent = 'بررسی وضعیت';
+      offBtn.disabled = false;
+      offBtn.classList.remove('is-loading');
+    }
+  }
+
+  offBtn.addEventListener('click', checkTomorrowStatus);
+  checkTomorrowStatus();
+
+  function showOffdayNotification(data) {
+    if (!notifyBar || !notifyText || !data) return;
+    const mode = getNotifyPreference();
+    if (mode === 'none') return;
+    if (mode === 'only_off' && !data.isOff) return;
+
+    notifyText.innerHTML = `<strong>به‌روزرسانی تعطیلی:</strong> ${data.message || ''}`;
+    notifyBar.classList.add('visible');
+  }
+
+  function setGradeTag(el, gradeObj, label) {
+    if (!el) return;
+    el.className = 'grade-tag';
+    if (!gradeObj || typeof gradeObj.isOff !== 'boolean') {
+      el.textContent = `${label}: نامشخص`;
+      return;
+    }
+    if (gradeObj.isOff) {
+      el.textContent = `${label}: تعطیل`;
+      el.classList.add('grade-off');
+    } else {
+      el.textContent = `${label}: باز`;
+      el.classList.add('grade-on');
+    }
+  }
+
+  function loadOffdayHistory() {
+    try {
+      const raw = localStorage.getItem(OFFDAY_HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function updateOffdayHistory(data, current) {
+    const history = Array.isArray(current) ? current.slice() : [];
+    if (!data || !data.date) return history;
+
+    const entry = {
+      date: data.date,
+      isOff: !!data.isOff,
+      percent: typeof data.percent === 'number' ? data.percent : parseInt(data.percent, 10) || 0
+    };
+
+    const idx = history.findIndex((item) => item.date === entry.date);
+    if (idx >= 0) history[idx] = entry;
+    else history.push(entry);
+
+    const MAX_ITEMS = 7;
+    if (history.length > MAX_ITEMS) {
+      history.splice(0, history.length - MAX_ITEMS);
+    }
+
+    try {
+      localStorage.setItem(OFFDAY_HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {}
+
+    return history;
+  }
+
+  function renderOffdayHistory(history) {
+    if (!offHistoryContainer) return;
+    if (!history || history.length === 0) {
+      offHistoryContainer.textContent = 'هنوز تاریخچه‌ای در این مرورگر ذخیره نشده است.';
+      return;
+    }
+
+    let html = '<div class="off-history-title">تاریخچه تعطیلی روزهای اخیر (این مرورگر)</div>';
+    history.forEach((item) => {
+      const statusText = item.isOff ? 'تعطیل' : 'باز';
+      const color = item.isOff ? '#b91c1c' : '#166534';
+      const percent = typeof item.percent === 'number' ? item.percent : '--';
+      html += `<div class="off-history-item"><span class="off-history-date">${item.date}</span><span class="off-history-status" style="color:${color}">${statusText} (${percent}%)</span></div>`;
+    });
+    offHistoryContainer.innerHTML = html;
+  }
+
+  // پیش‌بینی ساده فردا بر اساس روند اخیر AQI (غیر رسمی)
+  function updateSimpleForecast() {
+    const forecastAqiEl = document.getElementById('forecast-aqi');
+    const forecastStatusEl = document.getElementById('forecast-status');
+    const forecastMetaEl = document.getElementById('forecast-meta');
+    if (!forecastAqiEl || !forecastStatusEl || !forecastMetaEl) return;
+
+    const values = [];
+    const maxLookBack = 10;
+
+    for (let i = aqiHistory.iqair.length - 1; i >= 0 && values.length < maxLookBack; i--) {
+      const v = aqiHistory.iqair[i];
+      if (typeof v === 'number') values.push(v);
+    }
+    for (let i = aqiHistory.tehran.length - 1; i >= 0 && values.length < maxLookBack; i--) {
+      const v = aqiHistory.tehran[i];
+      if (typeof v === 'number') values.push(v);
+    }
+
+    if (values.length < 3) {
+      forecastAqiEl.textContent = '--';
+      forecastAqiEl.className = 'forecast-aqi';
+      forecastStatusEl.textContent = 'داده کافی برای پیش‌بینی ساده وجود ندارد.';
+      forecastStatusEl.className = 'forecast-status';
+      forecastMetaEl.textContent = 'پیش‌بینی غیررسمی؛ نیاز به حداقل چند مقدار اخیر دارد.';
+      return;
+    }
+
+    const avg = Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+    const first = values[values.length - 1];
+    const last = values[0];
+    const delta = last - first;
+
+    forecastAqiEl.textContent = avg;
+
+    const cat = getAQICategory(avg);
+    forecastAqiEl.className = 'forecast-aqi ' + cat.cls;
+    forecastStatusEl.className = 'forecast-status ' + cat.cls;
+
+    let trendText = '';
+    if (Math.abs(delta) <= 5) {
+      trendText = 'تقریباً ثابت';
+    } else if (delta > 5) {
+      trendText = 'احتمالاً رو به بدتر شدن';
+    } else if (delta < -5) {
+      trendText = 'احتمالاً رو به بهتر شدن';
+    }
+
+    forecastStatusEl.textContent = `پیش‌بینی: ${cat.text}${trendText ? '، ' + trendText : ''}`;
+    forecastMetaEl.textContent = `بر اساس میانگین ${values.length} مقدار اخیر AQI در این مرورگر (پیش‌بینی غیررسمی، منبع رسمی نیست).`;
+  }
+
+  // مقداردهی اولیه نمودار و پیش‌بینی
+  initAqiChart();
+  updateSimpleForecast();
+  </script>
+
+</body>
+</html>
