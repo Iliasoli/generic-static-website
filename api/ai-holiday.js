@@ -1,111 +1,62 @@
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY || 'AIzaSyAQDUBsJBlLZR7UTwFxqjGNZa8oLDN18sc';
+
+  Tehran: null
+};
 
 module.exports = async (req, res) => {
+  const method = req.method || 'GET';
+  const url = new URL(req.url, 'http://localhost');
+  const city = (url.searchParams.get('city') || (req.body && req.body.city) || 'Tehran').trim();
+
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-  if (!GEMINI_API_KEY) {
-    res.statusCode = 500;
-    return res.end(JSON.stringify({ error: 'no-api-key' }));
-  }
-
   try {
-    const body = await readJsonBody(req);
-    const city = (body && body.city) || 'Tehran';
+    if (method === 'GET') {
+      const data = cache[city];
+      if (!data) {
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ error: 'no-cached-data' }));
+      }
+      return res.end(JSON.stringify(data));
+    }
 
-    // یک پرامپت خیلی ساده برای تست
-    const prompt = `
-شهر: ${city}
-وظیفه: یک شیء JSON ساده برگردان که فقط همین باشد:
+    if (method === 'POST') {
+      // AI بخش هوش مصنوعی برای تحلیل تعطیلی غیرفعال شده است.
+      const today = new Date();
+      const faDate = today.toLocaleDateString('fa-IR');
 
-{
-  "overall": {
-    "isOff": true or false,
-    "probability": 0-100
-  }
-}
+      const result = {
+        overall: {
+          isOff: false,
+          probability: 0,
+          sourcesCount: 0,
+          updatedAt: new Date().toISOString(),
+          message:
+            `تحلیل هوش مصنوعی غیرفعال است. برای امروز (${faDate}) تنها می‌توانید از دکمه «اطلاع رسمی» استفاده کنید یا خبرها را به‌صورت دستی بررسی کنید.`
+        },
+        grades: {
+          elementary: { isOff: false, probability: 0 },
+          middle: { isOff: false, probability: 0 },
+          high: { isOff: false, probability: 0 },
+          university: { isOff: false, probability: 0 },
+          offices: { isOff: false, probability: 0 }
+        }
+      };
 
-هیچ متن اضافی، توضیح یا بلاک کد نده. فقط JSON خالص.
-`;
+      cache[city] = result;
+      res.statusCode = 200;
+      return res.end(JSON.stringify(result));
+    }
 
-    const raw = await callGemini(prompt);
-
-    res.statusCode = 200;
-    return res.end(
-      JSON.stringify({
-        ok: true,
-        rawFromGemini: raw
-      })
-    );
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: 'method-not-allowed' }));
   } catch (err) {
-    console.error('AI API error (debug):', err);
+    console.error('AI API error:', err);
     res.statusCode = 500;
-    return res.end(
+    res.end(
       JSON.stringify({
-        error: 'debug-failed',
-        message: err && err.message ? err.message : String(err),
-        stack: err && err.stack ? err.stack : undefined
+        error: 'ai-disabled',
+        message: 'بخش هوش مصنوعی برای این سرویس غیرفعال شده است.'
       })
     );
   }
 };
-
-async function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      if (!data) return resolve({});
-      try {
-        resolve(JSON.parse(data));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    req.on('error', reject);
-  });
-}
-
-async function callGemini(prompt) {
-  const url =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=' +
-    encodeURIComponent(GEMINI_API_KEY);
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 256
-      }
-    })
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error('Gemini API error: ' + resp.status + ' ' + text);
-  }
-
-  const data = await resp.json();
-  const candidates = data.candidates || [];
-  if (!candidates.length || !candidates[0].content || !candidates[0].content.parts) {
-    throw new Error('No content from Gemini: ' + JSON.stringify(data));
-  }
-
-  // کل متن خروجی مدل را برمی‌گردانیم (بدون پارس)
-  const parts = candidates[0].content.parts;
-  let fullText = '';
-  for (const p of parts) {
-    if (p.text) fullText += p.text;
-  }
-  return fullText.trim();
-}

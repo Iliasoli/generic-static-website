@@ -356,36 +356,6 @@
       min-height: 1.1em;
     }
 
-    .ai-section {
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px dashed rgba(148, 163, 184, 0.7);
-      text-align: center;
-    }
-
-    .ai-title {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #4b5563;
-      margin-bottom: 4px;
-    }
-
-    .btn-secondary {
-      margin-top: 10px;
-      background: linear-gradient(135deg, #374151, #4b5563);
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.55);
-    }
-
-    .btn-secondary:hover {
-      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.7);
-      filter: brightness(1.03);
-    }
-
-    .btn-secondary:active {
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.6);
-      filter: brightness(0.97);
-    }
-
     @media (max-width: 768px) {
       body {
         padding-top: 16px;
@@ -516,17 +486,7 @@
         <div id="off-detail" class="status">درحال بررسی...</div>
         
         <div class="meta" id="off-meta">احتمال: --%</div>
-        <button id="off-btn">بررسی وضعیت (اطلاع رسمی)</button>
-
-        <div class="ai-section">
-          <div class="ai-title">تحلیل خودکار با هوش مصنوعی (Gemini)</div>
-          <div id="ai-off-status" class="status">برای تحلیل خودکار روی دکمه زیر بزنید.</div>
-          <div class="meta" id="ai-off-meta">
-            تحلیل متن خبرها و اطلاعیه‌های رسمی درباره تعطیلی فردا در تهران، بر اساس مدل زبانی.
-          </div>
-          <div id="ai-grades" class="meta" style="margin-top:8px;text-align:right;"></div>
-          <button id="ai-btn" class="btn-secondary">تحلیل با هوش مصنوعی</button>
-        </div>
+        <button id="off-btn">بررسی وضعیت</button>
       </div>
     </div>
 
@@ -759,117 +719,8 @@ offBtn.addEventListener('click', checkTomorrowStatus);
 checkTomorrowStatus();
 
 // ==========================================
-// 5. AI (Gemini-backed) Holiday Checker
-// ==========================================
-const aiBtn = document.getElementById('ai-btn');
-const aiOffStatus = document.getElementById('ai-off-status');
-const aiOffMeta = document.getElementById('ai-off-meta');
-const aiGradesEl = document.getElementById('ai-grades');
-
-// آدرس بک‌اندی که Gemini را صدا می‌زند (جایگزین کن با آدرس واقعی)
-const AI_API_BASE = '/api/ai-holiday';
-
-async function runAIScan() {
-    if (!aiBtn) return;
-    aiBtn.disabled = true;
-    aiBtn.classList.add('is-loading');
-    aiBtn.textContent = 'درحال دریافت تحلیل از هوش مصنوعی...';
-    aiOffStatus.textContent = 'درحال تحلیل متن خبرها و اطلاعیه‌ها روی سرور...';
-    aiOffStatus.className = 'status';
-    aiOffMeta.textContent = 'درحال اتصال به سرویس AI (Gemini) از طریق بک‌اند شما...';
-    if (aiGradesEl) aiGradesEl.textContent = '';
-
-    try {
-        const res = await fetch(AI_API_BASE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                city: 'Tehran',
-                includeGrades: true,
-                context: {
-                    lastIQ,
-                    lastTH
-                }
-            })
-        });
-
-        if (!res.ok) throw new Error('ai-api-failed');
-
-        const data = await res.json();
-        showAiResult(data);
-    } catch (err) {
-        console.error('AI API error', err);
-        aiOffStatus.textContent = 'خطا در دریافت تحلیل خودکار از سرور هوش مصنوعی.';
-        aiOffStatus.className = 'status';
-        aiOffMeta.textContent = 'اتصال به بک‌اند یا سرویس Gemini ممکن است مشکل داشته باشد.';
-    } finally {
-        aiBtn.disabled = false;
-        aiBtn.classList.remove('is-loading');
-        aiBtn.textContent = 'تحلیل با هوش مصنوعی';
-    }
-}
-
-function showAiResult(data) {
-    if (!data || !data.overall) {
-        aiOffStatus.textContent = 'پاسخ معتبری از سرویس هوش مصنوعی دریافت نشد.';
-        aiOffStatus.className = 'status';
-        aiOffMeta.textContent = 'ساختار پاسخ باید شامل فیلد overall باشد.';
-        return;
-    }
-
-    const overall = data.overall;
-
-    aiOffStatus.textContent = overall.message ||
-        (overall.isOff
-            ? 'به‌احتمال زیاد فردا در تهران تعطیلی وجود دارد (بر اساس تحلیل AI).'
-            : 'طبق تحلیل AI، نشانه‌ی قوی از تعطیلی فردا در تهران دیده نمی‌شود.');
-
-    aiOffStatus.className = 'status ' + (overall.isOff ? 'unhealthy' : 'good');
-
-    const updatedAt = overall.updatedAt
-        ? new Date(overall.updatedAt).toLocaleTimeString('fa-IR')
-        : '---';
-
-    aiOffMeta.textContent =
-        `احتمال کلی: ${overall.probability ?? '-'}% | ` +
-        `منابع تحلیل‌شده: ${overall.sourcesCount ?? '-'} | ` +
-        `آخرین به‌روزرسانی: ${updatedAt}`;
-
-    // نمایش وضعیت هر مقطع (در صورت وجود)
-    if (aiGradesEl && data.grades) {
-        const grades = data.grades;
-        const lines = [];
-
-        const entries = [
-            { key: 'elementary', label: 'ابتدایی' },
-            { key: 'middle', label: 'متوسطه اول' },
-            { key: 'high', label: 'متوسطه دوم' },
-            { key: 'university', label: 'دانشگاه‌ها' },
-            { key: 'offices', label: 'ادارات و بانک‌ها' }
-        ];
-
-        entries.forEach(entry => {
-            const g = grades[entry.key];
-            if (!g) return;
-            const statusText = g.isOff ? 'تعطیل' : 'باز';
-            const probText = (g.probability ?? '-') + '%';
-            lines.push(`${entry.label}: ${statusText} (${probText})`);
-        });
-
-        aiGradesEl.textContent = lines.length
-            ? 'جزئیات مقاطع: ' + lines.join(' | ')
-            : '';
-    }
-}
-
-if (aiBtn) {
-    aiBtn.addEventListener('click', runAIScan);
-}
-
-// ==========================================
 // Helper Functions
 // ==========================================
-
 function setStatusColor(aqiId, statusId, value) {
     const aqiEl = document.getElementById(aqiId);
     const statusEl = document.getElementById(statusId);
