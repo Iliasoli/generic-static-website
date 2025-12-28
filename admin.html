@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>پنل مدیریت وضعیت تعطیلی</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./assets/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>پنل مدیریت وضعیت تعطیلی امروز</h1>
+    </header>
+
+    <main>
+      <div class="admin-container">
+        <section class="admin-section">
+          <h2>انتخاب شهر</h2>
+          <p class="hint">
+            نام شهری را که می‌خواهید وضعیت امروز آن را تنظیم یا بررسی کنید وارد کنید. به‌صورت پیش‌فرض «Tehran» انتخاب شده است.
+          </p>
+          <div class="field-row">
+            <label for="city-input">شهر</label>
+            <input id="city-input" type="text" value="Tehran" />
+          </div>
+
+          <div class="button-row">
+            <button id="load-status" type="button" class="secondary">بارگذاری وضعیت فعلی</button>
+            <button id="save-manual" type="button">ثبت وضعیت دستی</button>
+            <button id="run-ai" type="button" class="secondary">درخواست تحلیل هوش مصنوعی</button>
+          </div>
+        </section>
+
+        <section class="admin-section">
+          <h2>وضعیت دستی امروز</h2>
+          <p class="hint">
+            در این بخش می‌توانید وضعیت تعطیلی امروز را به‌صورت دستی ثبت کنید. این داده در حافظه موقت سرور نگهداری می‌شود و ممکن است پس از
+            ری‌استارت یا استقرار مجدد حذف شود.
+          </p>
+
+          <div class="field-row">
+            <label for="overall-isOff">وضعیت کلی امروز</label>
+            <select id="overall-isOff">
+              <option value="false">باز</option>
+              <option value="true">تعطیل</option>
+            </select>
+          </div>
+
+          <div class="field-row">
+            <label for="overall-reason">توضیح کلی</label>
+            <textarea id="overall-reason" placeholder="مثال: طبق اطلاعیه استانداری تهران، به دلیل آلودگی هوا مدارس ابتدایی تعطیل هستند."></textarea>
+          </div>
+
+          <details class="admin-details">
+            <summary>جزئیات برای هر مقطع تحصیلی</summary>
+            <div class="field-row">
+              <label for="grade-elementary-isOff">ابتدایی</label>
+              <select id="grade-elementary-isOff">
+                <option value="false">باز</option>
+                <option value="true">تعطیل</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label for="grade-middle-isOff">متوسطه اول</label>
+              <select id="grade-middle-isOff">
+                <option value="false">باز</option>
+                <option value="true">تعطیل</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label for="grade-high-isOff">متوسطه دوم</label>
+              <select id="grade-high-isOff">
+                <option value="false">باز</option>
+                <option value="true">تعطیل</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label for="grade-university-isOff">دانشگاه‌ها</label>
+              <select id="grade-university-isOff">
+                <option value="false">باز</option>
+                <option value="true">تعطیل</option>
+              </select>
+            </div>
+
+            <div class="field-row">
+              <label for="grade-offices-isOff">ادارات</label>
+              <select id="grade-offices-isOff">
+                <option value="false">باز</option>
+                <option value="true">تعطیل</option>
+              </select>
+            </div>
+          </details>
+        </section>
+
+        <section class="admin-section">
+          <h2>خروجی و وضعیت سرور</h2>
+          <p class="hint">
+            آخرین پاسخ دریافتی از سرور در این بخش نمایش داده می‌شود تا بتوانید وضعیت ذخیره شده را بررسی و اشکال‌زدایی کنید.
+          </p>
+          <div id="status-message" class="status-message"></div>
+          <pre id="status-raw" class="status-raw"></pre>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span>این صفحه فقط برای مدیریت و تست سرویس استفاده شود و جایگزین اطلاعیه‌های رسمی نیست.</span>
+    </footer>
+
+    <script src="./assets/admin.js"></script>
+  </body>
+</html>
