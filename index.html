@@ -1328,22 +1328,22 @@
 
   offBtn.addEventListener('click', checkTomorrowStatus);
   checkTomorrowStatus();
-
-  function showOffdayNotification(data) {     if (!notifyBar || !notifyText || !data) return;    consto mode = getNotifyPreference();    if  (mode === 'none') return;    if  (mode === 'only_off' && !data.isOff) return;
-    notifyText.innerHTML  `<Tstrong>به‌روزرسانی تعطی:</تعstrong> ${data.message || ''}`;   ' notifyBar.classList.add('visible'); i }
-  function normalizeOffGrade(gradeObj, overallIsOff) {     if (gradeObj && typeof gradeObj.isOff === 'boolean') {       return gradeObj;   p }   r if (typeof overallIsOff === 'boolean') {     o return { isOff: overallIsOff };   r }   ; return null; f }
-  function setGradeTag(el, gradeObj, label) {   a if (!el) return;     el.className = 'grade-tag';    if  (!gradeObj || typeof gradeObj.isOff !== 'boolean') {       el.textContent = `${label}: نامشخص`;      return;
-    }    if (gradeObj.isOff) {
-      el.textContent = `${label}: تعطیل`;      el.classList.add('grade-off');
-    } else {      el.textContent = `${label}: باز`;
-      el.classList.add('grade-on');    }_code
- new </}
-
-
-
-
-
-List.add('grade-on');
+  function showOffdayNotification(data) {     if (!notifyBar || !notifyText || !data) return;   n const mode = getNotifyPreference();   ) if (mode === 'none') return;   n if (mode === 'only_off' && !data.isOff) return;
+    notifyText.innerHTML  `<Tstrong>به‌روزرسانی تعطی:</تعstrong> ${data.message || ''}`;   ' notifyBar.classList.add('visible'); b }
+  function normalizeOffGradezeOffGrade(gradeObj, overallIsOff) {     if (gradeObj && typeof gradeObj.isOff === 'boolean') {       return gradeObj;   p }   r if (typeof overallIsOff === 'boolean') {     o return { isOff: overallIsOff };   r }   ; return null; f }
+  function setGradeTag(el, gradeObj, label) {
+    if (!el) return;
+    el.className = 'grade-tag';
+    if (!gradeObj || typeof gradeObj.isOff !== 'boolean') {
+      el.textContent = `${label}: نامشخص`;
+      return;
+    }
+    if (gradeObj.isOff) {
+      el.textContent = `${label}: تعطیل`;
+      el.classList.add('grade-off');
+    } else {
+      el.textContent = `${label}: باز`;
+      el.classList.add('grade-on');
     }
   }
 
