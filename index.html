@@ -278,6 +278,18 @@
       border: 1px solid rgba(148, 163, 184, 0.6);
       color: #4b5563;
       background: rgba(248, 250, 252, 0.96);
+      cursor: default;
+      transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease,
+        background 0.18s ease,
+        color 0.18s ease;
+    }
+
+    .grade-tag:hover {
+      transform: translateY(-1px) scale(1.03);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.25);
     }
 
     .grade-tag.grade-on {
@@ -290,6 +302,19 @@
       border-color: #ef4444;
       color: #7f1d1d;
       background: rgba(248, 113, 113, 0.08);
+    }
+
+    .grade-tag.grade-focus {
+      box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.95),
+        0 0 0 7px rgba(191, 219, 254, 0.85);
+      background: rgba(239, 246, 255, 0.98);
+      color: #1e3a8a;
+      border-color: #1d4ed8;
+    }
+
+    .grade-tag.grade-updated {
+      animation: gradePulse 0.7s ease-out;
     }
 
     button {
@@ -451,6 +476,21 @@
       0% { transform: scale(0.96); }
       50% { transform: scale(1.04); }
       100% { transform: scale(0.96); }
+    }
+
+    @keyframes gradePulse {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55);
+      }
+      70% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      }
     }
 
     @keyframes livePulse {
@@ -1219,6 +1259,20 @@
     offices: document.getElementById('grade-offices')
   };
 
+  // اجازه می‌دهد با کلیک روی تگ‌ها، یک مقطع را فوکوس / برجسته کنیم
+  Object.values(gradeEls).forEach((el) => {
+    if (!el) return;
+    el.addEventListener('click', () => {
+      const isFocused = el.classList.contains('grade-focus');
+      Object.values(gradeEls).forEach((g) => {
+        if (g) g.classList.remove('grade-focus');
+      });
+      if (!isFocused) {
+        el.classList.add('grade-focus');
+      }
+    });
+  });
+
   const BIN_ID = '692de28043b1c97be9d1196c';
   const MASTER_KEY = '$2a$10$57AkCAfM2BgIYN4mEawKE.GKIf.0dUtV5OG6glYN3O6dRQJ5qpgae ';
 
@@ -1356,6 +1410,8 @@
       el.textContent = `${label}: نامشخص`;
       return;
     }
+
+    // متن و رنگ وضعیت را تنظیم می‌کنیم
     if (gradeObj.isOff) {
       el.textContent = `${label}: تعطیل`;
       el.classList.add('grade-off');
@@ -1363,6 +1419,14 @@
       el.textContent = `${label}: باز`;
       el.classList.add('grade-on');
     }
+
+    // برای جلب توجه کاربر هنگام به‌روزرسانی، یک انیمیشن کوتاه اجرا می‌کنیم
+    el.classList.remove('grade-updated');
+    // ترفند reflow برای اینکه انیمیشن هر بار دوباره اجرا شود
+    // eslint-disable-next-line no-unused-expressions
+    void el.offsetWidth;
+    el.classList.add('grade-updated');
+  }
   }
 
   function loadOffdayHistory() {
