@@ -1,4 +1,4 @@
-// Admin page script: manage manual status for today's closures
+// Admin page script: manage manual status for tomorrow's closures
 
 document.addEventListener('DOMContentLoaded', () => {
   const cityInput = document.getElementById('city-input');
@@ -204,7 +204,7 @@ function buildSummary(city, data) {
   const reason = data.overall.message || '';
   const updatedAt = data.overall.updatedAt;
 
-  let text = `وضعیت امروز برای ${city}: ${status}`;
+  let text = `وضعیت فردا برای ${city}: ${status}`;
   if (reason) {
     text += ` — ${reason}`;
   }
