@@ -645,51 +645,72 @@ if (notifyClose) {
 // ==========================================
 // 2. Air Tehran Logic
 // ==========================================
-(function(){
-  const aqiEl = document.getElementById('th-aqi');
-  const statusEl = document.getElementById('th-status');
-  const metaEl = document.getElementById('th-meta');
-  const btn = document.getElementById('th-btn');
-  const msgEl = document.getElementById('th-msg');
-  const API = 'https://air.tehran.ir/DesktopModules/AirService/Api/Air/AQINow';
+function initAqiChart() {
+  const canvas = document.getElementById('aqi-history-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
 
-  async function fetchTehran(){
-    btn.disabled = true;
-    btn.textContent = 'درحال دریافت...';
-    btn.classList.add('is-loading');
-    msgEl.textContent = '';
-    try {
-      const r = await fetch(API, { cache: 'no-store' });
-      if(!r.ok) throw new Error('HTTP ' + r.status);
-      const text = await r.text();
-      const m = text.match(/-?\d+(\.\d+)?/);
-      if(m) {
-        const num = Math.round(Number(m[0]));
-        animateNumber(aqiEl, num);
-        setStatusColor('th-aqi', 'th-status', num);
-        metaEl.textContent = 'بروزرسانی: ' + new Date().toLocaleTimeString('fa-IR', {hour:'2-digit', minute:'2-digit'});
-        lastTH = num;
-        updateDifferenceCard();
-        checkTomorrowStatus();
-      } else { throw new Error('فرمت نامعتبر'); }
-    } catch(err) {
-      aqiEl.textContent = '---';
-      statusEl.textContent = 'خطا';
-      statusEl.className = 'status';
-      msgEl.textContent = 'عدم دسترسی (نیاز به IP ایران)';
-      lastTH = null;
-      updateDifferenceCard();
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'بارگذاری دوباره';
-      btn.classList.remove('is-loading');
-    }
+  // ارتفاع ثابت و غیرفعال کردن حالت واکنش‌گرا برای جلوگیری از محاسبات سنگین
+  canvas.height = 140;
+  if (!canvas.width) {
+    canvas.width = canvas.clientWidth || 400;
   }
-  btn.addEventListener('click', fetchTehran);
-  fetchTehran();
-  setInterval(fetchTehran, 300000); 
-})();
 
+  aqiHistoryChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: aqiHistory.labels,
+      datasets: [
+        {
+          label: 'IQAir',
+          data: aqiHistory.iqair,
+          borderColor: '#0288d1',
+          backgroundColor: 'rgba(2, 136, 209, 0.18)',
+          spanGaps: true,
+          tension: 0.3,
+          pointRadius: 2
+        },
+        {
+          label: 'شهرداری',
+          data: aqiHistory.tehran,
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34, 197, 94, 0.18)',
+          spanGaps: true,
+          tension: 0.3,
+          pointRadius: 2
+        }
+      ]
+    },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            font: {
+              family: 'Vazirmatn'
+            }
+          }
+        },
+        tooltip: {
+          rtl: true
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 7,
+            autoSkip: true,
+            maxRotation: 0
+          }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax: 200
+        }
+      }
+    }
+  });
+}
 // ==========================================
 // 3. Difference Logic
 // ==========================================
@@ -888,3 +909,4 @@ function setGradeTag(el, gradeObj, label) {
 
 </body>
 </html>
+
