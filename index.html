@@ -1422,11 +1422,8 @@
 
     // برای جلب توجه کاربر هنگام به‌روزرسانی، یک انیمیشن کوتاه اجرا می‌کنیم
     el.classList.remove('grade-updated');
-    // ترفند reflow برای اینکه انیمیشن هر بار دوباره اجرا شود
-    // eslint-disable-next-line no-unused-expressions
     void el.offsetWidth;
     el.classList.add('grade-updated');
-  }
   }
 
   function loadOffdayHistory() {
