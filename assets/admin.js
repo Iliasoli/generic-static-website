@@ -115,8 +115,13 @@ async function loadStatus(city, statusMessage, statusRaw) {
   }
 }
 
-async function saveManual(city, statusMessage, statusRaw) {
+async function saveManual(city, statusMessage, statusRaw, adminToken, errorBox) {
   clearStatus(statusMessage, statusRaw);
+
+  if (!adminToken) {
+    if (errorBox) errorBox.textContent = 'ابتدا با رمز صحیح به پنل وارد شوید.';
+    return;
+  }
 
   const manual = collectManualFromForm();
   try {
@@ -124,7 +129,8 @@ async function saveManual(city, statusMessage, statusRaw) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-Admin-Token': adminToken
       },
       body: JSON.stringify({ city, manual })
     });
@@ -158,9 +164,14 @@ async function runAiCheck(city, statusMessage, statusRaw, adminToken, errorBox) 
     return;
   }
 
-  statusMessage.textContent = 'در حال ارسال درخواست به سرور برای تحلیل هوشers: {
+  statusMessage.textContent = 'در حال ارسال درخواست به سرور برای تحلیل هوش مصنوعی...';
+  try {
+    const response = await fetch(`/api/ai-holiday?city=${encodeURIComponent(city)}`, {
+      method: 'POST',
+      headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-Admin-Token': adminToken
       },
       body: JSON.stringify({ city })
     });
