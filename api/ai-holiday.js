@@ -3,6 +3,12 @@
   Tehran: null
 };
 
+const ADMIN_TOKEN =
+  process.env.ADMIN_HOLIDAY_TOKEN ||
+  process.env.ADMIN_PASSWORD ||
+  process.env.ADMIN_TOKEN ||
+  '';
+
 module.exports = async (req, res) => {
   const method = req.method || 'GET';
   const url = new URL(req.url, 'http://localhost');
@@ -24,13 +30,19 @@ module.exports = async (req, res) => {
     if (method === 'POST') {
       const manual = body.manual;
 
-      if (manual && typeof manual === 'object') {
-        const normalized = buildManualResult(manual);
-        cache[city] = normalized;
-        res.statusCode = 200;
-        return res.end(JSON.stringify(normalized));
+      // برای هر نوع POST (چه دستی چه AI) از توکن ادمین استفاده می‌کنیم
+      if (!ADMIN_TOKEN) {
+        res.statusCode = 500;
+        return res.end(
+          JSON.stringify({
+            error: 'admin-token-not-configured',
+            message: 'توکن ادمین روی سرور تنظیم نشده است.'
+          })
+        );
       }
 
+      const headerToken =
+        (req.headers && (req.headers['x-admin-token
       // AI بخش هوش مصنوعی برای تحلیل تعطیلی غیرفعال شده است.
       const today = new Date();
       const faDate = today.toLocaleDateString('fa-IR');

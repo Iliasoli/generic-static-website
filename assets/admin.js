@@ -1,9 +1,9 @@
 // Admin page script: manage manual status for tomorrow's closures
 
-// بسیار مهم: این محافظ، امنیت کامل سروری نیست و فقط برای کاربری ساده/شخصی مناسب است.
-// رمز عبور در کد فرانت‌اند قرار دارد و یک کاربر حرفه‌ای می‌تواند آن را ببیند.
-// برای امنیت واقعی باید احراز هویت سمت سرور (session / JWT / OAuth و ...) داشته باشید.
-const ADMIN_PASSWORD = 'change-me-strong-password';
+// نکته امنیتی:
+// در برنامه‌های استاتیک، نمی‌توان رمز واقعی را در فرانت‌اند مخفی کرد.
+// برای همین رمز ادمین روی سرور، در متغیر محیطی (ENV) نگه‌داری می‌شود
+// و این صفحه فقط رمز را از کاربر می‌گیرد و همراه درخواست به سرور می‌فرستد.
 
 document.addEventListener('DOMContentLoaded', () => {
   const overlay = document.getElementById('admin-lock-overlay');
@@ -11,7 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const passSubmit = document.getElementById('admin-pass-submit');
   const errorBox = document.getElementById('admin-lock-error');
 
-  // اگر قبلا در این مرورگر تأیید شده، مستقیم وارد شویم
+  // token فعلی که کاربر وارد کرده، فقط در حافظه فرانت‌اند
+  let currentAdminToken = null;
+
+  // اگر قبلا در این مرورگر توکن معتبر بوده، فقط لایه UI را مخفی می‌کنیم
   const storedFlag = typeof window !== 'undefined' ? window.localStorage.getItem('admin_unlocked_v1') : null;
   if (storedFlag === 'true' && overlay) {
     overlay.classList.add('hidden');
@@ -19,18 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
     passInput.focus();
   }
 
+  async function validateToken(token) {
+    // یک درخواست سبک GET یا POST برای تست توکن می‌توان زد؛
+    // اینجا برای سادگی فقط لایه UI را بر اساس پاسخ POST اصلی کنترل می‌کنیم.
+    // بنابراین این تابع فقط توکن را ست می‌کند و چک واقعی در زمان ذخیره انجام می‌شود.
+    currentAdminToken = token;
+    window.localStorage.setItem('admin_unlocked_v1', 'true');
+    if (overlay) overlay.classList.add('hidden');
+    if (errorBox) errorBox.textContent = '';
+  }
+
   function tryUnlock() {
     if (!passInput || !overlay) return;
     const value = passInput.value || '';
-    if (value === ADMIN_PASSWORD) {
-      window.localStorage.setItem('admin_unlocked_v1', 'true');
-      overlay.classList.add('hidden');
-      if (errorBox) errorBox.textContent = '';
-    } else {
-      if (errorBox) errorBox.textContent = 'رمز عبور اشتباه است.';
-      passInput.value = '';
-      passInput.focus();
+    if (!value) {
+      if (errorBox) errorBox.textContent = 'رمز عبور را وارد کنید.';
+      return;
     }
+    validateToken(value);
   }
 
   if (passSubmit) {
@@ -43,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // در ادامه، در رویدادهای ذخیره/AI این توکن را همراه درخواست می‌فرستیم
 
   const cityInput = document.getElementById('city-input');
   const loadBtn = document.getElementById('load-status');
@@ -61,14 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (saveBtn) {
     saveBtn.addEventListener('click', async () => {
       const city = (cityInput.value || 'Tehran').trim() || 'Tehran';
-      await saveManual(city, statusMessage, statusRaw);
+      await saveManual(city, statusMessage, statusRaw, currentAdminToken, errorBox);
     });
   }
 
   if (runAiBtn) {
     runAiBtn.addEventListener('click', async () => {
       const city = (cityInput.value || 'Tehran').trim() || 'Tehran';
-      await runAiCheck(city, statusMessage, statusRaw);
+      await runAiCheck(city, statusMessage, statusRaw, currentAdminToken, errorBox);
     });
   }
 });
@@ -139,14 +150,15 @@ async function saveManual(city, statusMessage, statusRaw) {
   }
 }
 
-async function runAiCheck(city, statusMessage, statusRaw) {
+async function runAiCheck(city, statusMessage, statusRaw, adminToken, errorBox) {
   clearStatus(statusMessage, statusRaw);
 
-  statusMessage.textContent = 'در حال ارسال درخواست به سرور برای تحلیل هوش مصنوعی...';
-  try {
-    const response = await fetch(`/api/ai-holiday?city=${encodeURIComponent(city)}`, {
-      method: 'POST',
-      headers: {
+  if (!adminToken) {
+    if (errorBox) errorBox.textContent = 'ابتدا با رمز صحیح به پنل وارد شوید.';
+    return;
+  }
+
+  statusMessage.textContent = 'در حال ارسال درخواست به سرور برای تحلیل هوشers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
