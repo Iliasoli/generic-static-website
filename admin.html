@@ -7,6 +7,25 @@
     <link rel="stylesheet" href="./assets/style.css" />
   </head>
   <body>
+    <!-- لایه محافظ برای ورود به پنل ادمین -->
+    <div id="admin-lock-overlay">
+      <div class="admin-lock-card">
+        <h2>ورود به پنل مدیریت</h2>
+        <p class="admin-lock-hint">
+          برای جلوگیری از تغییرات ناخواسته، فقط افرادی که رمز عبور را دارند می‌توانند وضعیت تعطیلی را ویرایش کنند.
+        </p>
+        <div class="admin-lock-field-row">
+          <label for="admin-pass-input">رمز عبور</label>
+          <input id="admin-pass-input" type="password" autocomplete="off" />
+        </div>
+        <button id="admin-pass-submit" type="button">ورود به پنل</button>
+        <div id="admin-lock-error" class="admin-lock-error"></div>
+        <p class="admin-lock-note">
+          نکته: این لایه امنیتی در سطح رابط کاربری است و برای پروژه‌های کوچک/شخصی مناسب است. برای امنیت واقعی باید از احراز هویت سمت سرور استفاده شود.
+        </p>
+      </div>
+    </div>
+
     <header>
       <h1>پنل مدیریت وضعیت تعطیلی فردا</h1>
     </header>

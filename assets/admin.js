@@ -1,6 +1,49 @@
 // Admin page script: manage manual status for tomorrow's closures
 
+// بسیار مهم: این محافظ، امنیت کامل سروری نیست و فقط برای کاربری ساده/شخصی مناسب است.
+// رمز عبور در کد فرانت‌اند قرار دارد و یک کاربر حرفه‌ای می‌تواند آن را ببیند.
+// برای امنیت واقعی باید احراز هویت سمت سرور (session / JWT / OAuth و ...) داشته باشید.
+const ADMIN_PASSWORD = 'change-me-strong-password';
+
 document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('admin-lock-overlay');
+  const passInput = document.getElementById('admin-pass-input');
+  const passSubmit = document.getElementById('admin-pass-submit');
+  const errorBox = document.getElementById('admin-lock-error');
+
+  // اگر قبلا در این مرورگر تأیید شده، مستقیم وارد شویم
+  const storedFlag = typeof window !== 'undefined' ? window.localStorage.getItem('admin_unlocked_v1') : null;
+  if (storedFlag === 'true' && overlay) {
+    overlay.classList.add('hidden');
+  } else if (passInput) {
+    passInput.focus();
+  }
+
+  function tryUnlock() {
+    if (!passInput || !overlay) return;
+    const value = passInput.value || '';
+    if (value === ADMIN_PASSWORD) {
+      window.localStorage.setItem('admin_unlocked_v1', 'true');
+      overlay.classList.add('hidden');
+      if (errorBox) errorBox.textContent = '';
+    } else {
+      if (errorBox) errorBox.textContent = 'رمز عبور اشتباه است.';
+      passInput.value = '';
+      passInput.focus();
+    }
+  }
+
+  if (passSubmit) {
+    passSubmit.addEventListener('click', tryUnlock);
+  }
+  if (passInput) {
+    passInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        tryUnlock();
+      }
+    });
+  }
+
   const cityInput = document.getElementById('city-input');
   const loadBtn = document.getElementById('load-status');
   const saveBtn = document.getElementById('save-manual');
