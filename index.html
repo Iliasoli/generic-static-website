@@ -34,6 +34,68 @@
       max-width: 1200px;
     }
 
+    .top-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 10px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.55);
+    }
+
+    .top-nav-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: 0.95rem;
+    }
+
+    .top-nav-logo::before {
+      content: "●";
+      color: #22c55e;
+      margin-inline-start: 4px;
+      font-size: 0.7rem;
+    }
+
+    .top-nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+
+    .top-nav-link {
+      color: #e5e7eb;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.15s ease;
+    }
+
+    .top-nav-link:hover {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(148, 163, 184, 0.7);
+      transform: translateY(-1px);
+    }
+
+    .top-nav-link-active {
+      background: linear-gradient(135deg, #22c55e, #4ade80);
+      color: #0f172a;
+      border-color: transparent;
+    }
+
     .page-header {
       text-align: center;
       color: #e5e7eb;
@@ -666,6 +728,17 @@
 <body>
 
   <div class="app-shell">
+    <!-- نوار ناوبری ساده -->
+    <nav class="top-nav">
+      <div class="top-nav-left">
+        <span class="top-nav-logo">AQI Tehran</span>
+      </div>
+      <div class="top-nav-right">
+        <a href="index.html" class="top-nav-link top-nav-link-active">داشبورد</a>
+        <a href="admin.html" class="top-nav-link">پنل مدیریت</a>
+      </div>
+    </nav>
+
     <!-- نوار اعلان تغییرات تعطیلی -->
     <div id="notify-bar" class="notify-bar">
       <span id="notify-text"></span>
