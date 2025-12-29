@@ -79,6 +79,12 @@ header {
   border-color: transparent;
 }
 
+.admin-nav-link-active:hover {
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+  color: #0f172a;
+  border-color: transparent;
+}
+
 main {
   flex: 1 0 auto;
   max-width: 750px;
